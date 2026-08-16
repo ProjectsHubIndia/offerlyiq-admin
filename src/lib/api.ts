@@ -980,9 +980,10 @@ export const admin = {
       .then((r) => r.data),
 
   // Billing Ops
-  getWebhooks: (token?: string) =>
+  // Billing Ops
+  getWebhooks: (token?: string, page = 1, size = 10) =>
     axiosMain
-      .get("/admin/billing/webhooks", authConfig(token))
+      .get("/admin/billing/webhooks", { ...authConfig(token), params: { page, size } })
       .then((r) => r.data),
   getWebhookDetail: (id: string, token?: string) =>
     axiosMain
@@ -992,13 +993,13 @@ export const admin = {
     axiosMain
       .post(`/admin/billing/webhooks/${id}/replay`, {}, authConfig(token))
       .then((r) => r.data),
-  getTransactions: (token?: string) =>
+  getTransactions: (token?: string, page = 1, size = 10) =>
     axiosMain
-      .get("/admin/billing/transactions", authConfig(token))
+      .get("/admin/billing/transactions", { ...authConfig(token), params: { page, size } })
       .then((r) => r.data),
-  getChargebacks: (token?: string) =>
+  getChargebacks: (token?: string, page = 1, size = 10) =>
     axiosMain
-      .get("/admin/billing/chargebacks", authConfig(token))
+      .get("/admin/billing/chargebacks", { ...authConfig(token), params: { page, size } })
       .then((r) => r.data),
   refundTransaction: (id: string, reason: string, token?: string) =>
     axiosMain

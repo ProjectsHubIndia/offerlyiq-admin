@@ -30,6 +30,10 @@ export default function BillingOpsPage() {
   const [webhooks, setWebhooks] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [chargebacks, setChargebacks] = useState<any[]>([]);
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const pageSize = 10;
 
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -49,14 +53,17 @@ export default function BillingOpsPage() {
       const token = getAccessToken() || undefined;
 
       if (activeTab === "webhooks") {
-        const response = await admin.getWebhooks(token);
-        setWebhooks(response || []);
+        const response = await admin.getWebhooks(token, currentPage, pageSize);
+        setWebhooks(response?.items || []);
+        setTotalPages(response?.pages || 1);
       } else if (activeTab === "transactions") {
-        const response = await admin.getTransactions(token);
-        setTransactions(response || []);
+        const response = await admin.getTransactions(token, currentPage, pageSize);
+        setTransactions(response?.items || []);
+        setTotalPages(response?.pages || 1);
       } else if (activeTab === "chargebacks") {
-        const response = await admin.getChargebacks(token);
-        setChargebacks(response || []);
+        const response = await admin.getChargebacks(token, currentPage, pageSize);
+        setChargebacks(response?.items || []);
+        setTotalPages(response?.pages || 1);
       }
     } catch (err) {
       console.error(`Failed to fetch ${activeTab}`, err);
@@ -66,8 +73,12 @@ export default function BillingOpsPage() {
   };
 
   useEffect(() => {
-    fetchData();
+    setCurrentPage(1);
   }, [activeTab]);
+
+  useEffect(() => {
+    fetchData();
+  }, [activeTab, currentPage]);
 
   const handleReplay = async (id: string) => {
     setActionLoading(id);
@@ -370,6 +381,11 @@ export default function BillingOpsPage() {
             isLoading={loading}
             keyExtractor={(hook) => hook.id || Math.random().toString()}
             emptyMessage="No webhook events recorded recently."
+            pagination={{
+              currentPage,
+              totalPages,
+              onPageChange: setCurrentPage,
+            }}
           />
         )}
 
@@ -380,6 +396,11 @@ export default function BillingOpsPage() {
             isLoading={loading}
             keyExtractor={(tx) => tx.id || Math.random().toString()}
             emptyMessage="No records found."
+            pagination={{
+              currentPage,
+              totalPages,
+              onPageChange: setCurrentPage,
+            }}
           />
         )}
       </div>
