@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>OfferlyIQ.ai — Product Ad</title>
+  <style>
+    :root {
+      --orange: #FF7A34;
+      --orange-light: #FFB37A;
+      --ink: #0A0C10;
+      --panel: rgba(255, 255, 255, 0.06);
+      --panel-border: rgba(255, 255, 255, 0.10);
+      --text-hi: #F3F4F6;
+      --text-lo: #9AA0AC;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      overflow: hidden;
+    }
+
+    #stage {
+      position: relative;
+      width: 1120px;
+      height: 630px;
+      background:
+        radial-gradient(60% 45% at 50% 0%, rgba(255, 122, 52, 0.18), transparent 60%),
+        radial-gradient(50% 40% at 100% 100%, rgba(255, 122, 52, 0.10), transparent 60%),
+        var(--ink);
+      border-radius: 28px;
+      overflow: hidden;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 40px 100px rgba(0, 0, 0, 0.6);
+    }
+
+    .noise {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    .scene {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+    }
+
+    /* ---------- SCENE 1 : 0 - 3.2s ---------- */
+    #s1 {
+      animation: s1fade 15s infinite;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    @keyframes s1fade {
+      0% {
+        opacity: 0
+      }
+
+      2% {
+        opacity: 1
+      }
+
+      19% {
+        opacity: 1
+      }
+
+      22% {
+        opacity: 0
+      }
+
+      100% {
+        opacity: 0
+      }
+    }
+
+    .laptop {
+      width: 560px;
+      transform-origin: center;
+      animation: laptopZoom 15s infinite;
+    }
+
+    @keyframes laptopZoom {
+      0% {
+        transform: scale(0.9)
+      }
+
+      3% {
+        transform: scale(0.94)
+      }
+
+      20% {
+        transform: scale(1.12)
+      }
+
+      100% {
+        transform: scale(1.12)
+      }
+    }
+
+    .laptop-screen {
+      background: #12141A;
+      border: 1px solid var(--panel-border);
+      border-radius: 14px;
+      padding: 22px;
+      height: 280px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    .brand-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--orange);
+    }
+
+    .brand-name {
+      font-size: 12px;
+      color: var(--text-lo);
+      letter-spacing: 0.5px;
+    }
+
+    .headline {
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--text-hi);
+      margin: 0 0 6px;
+    }
+
+    .subline {
+      font-size: 12.5px;
+      color: var(--text-lo);
+      margin: 0 0 26px;
+    }
+
+    .cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--orange);
+      color: #2A1200;
+      font-weight: 600;
+      font-size: 13px;
+      padding: 11px 22px;
+      border-radius: 999px;
+      box-shadow: 0 0 0 0 rgba(255, 122, 52, 0.6);
+      animation: pulseGlow 1.6s ease-in-out infinite, clickPop 15s infinite;
+    }
+
+    @keyframes pulseGlow {
+
+      0%,
+      100% {
+        box-shadow: 0 0 0 0 rgba(255, 122, 52, 0.45);
+      }
+
+      50% {
+        box-shadow: 0 0 0 14px rgba(255, 122, 52, 0);
+      }
+    }
+
+    @keyframes clickPop {
+
+      0%,
+      17% {
+        transform: scale(1);
+      }
+
+      18% {
+        transform: scale(0.9);
+      }
+
+      19%,
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    .flash {
+      position: absolute;
+      inset: 0;
+      background: var(--orange);
+      opacity: 0;
+      animation: flashOn 15s infinite;
+    }
+
+    @keyframes flashOn {
+
+      0%,
+      18.2% {
+        opacity: 0
+      }
+
+      18.7% {
+        opacity: 0.9
+      }
+
+      19.4% {
+        opacity: 0
+      }
+
+      100% {
+        opacity: 0
+      }
+    }
+
+    /* ---------- SCENE 2 : 3.2 - 7s ---------- */
+    #s2 {
+      animation: s2fade 15s infinite;
+      padding: 60px 60px;
+    }
+
+    @keyframes s2fade {
+
+      0%,
+      20% {
+        opacity: 0
+      }
+
+      22% {
+        opacity: 1
+      }
+
+      45% {
+        opacity: 1
+      }
+
+      47% {
+        opacity: 0
+      }
+
+      100% {
+        opacity: 0
+      }
+    }
+
+    .q-eyebrow {
+      font-size: 10px;
+      color: var(--orange);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+
+    .typewriter {
+      font-size: 13.5px;
+      color: var(--text-hi);
+      font-weight: 500;
+      line-height: 1.4;
+      white-space: nowrap;
+      overflow: hidden;
+      border-right: 2px solid var(--orange);
+      width: 0;
+      animation: type1 1.6s steps(24, end) 3.0s forwards, blink 0.7s step-end infinite 3.0s;
+    }
+
+    .split {
+      display: flex;
+      gap: 20px;
+      height: 510px;
+      margin-top: 0;
+    }
+
+    .feed {
+      flex: 1;
+      border-radius: 14px;
+      border: 1px solid var(--panel-border);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 0;
+    }
+
+    .feed.candidate {
+      background: linear-gradient(160deg, #161A22, #0E1015);
+    }
+
+    .feed.ai {
+      background: linear-gradient(160deg, #241407, #150C05);
+    }
+
+    /* human figure: head + shoulders silhouette */
+    .person {
+      position: relative;
+      width: 100px;
+      height: 150px;
+      flex-shrink: 0;
+    }
+
+    .person .head {
+      position: absolute;
+      left: 50%;
+      top: 6px;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      transform: translateX(-50%);
+    }
+
+    .person .shoulders {
+      position: absolute;
+      left: 50%;
+      bottom: 0;
+      width: 130px;
+      height: 90px;
+      border-radius: 60px 60px 0 0;
+      transform: translateX(-50%);
+    }
+
+    .feed.candidate .head {
+      background: linear-gradient(160deg, #4A5266, #262B36);
+    }
+
+    .feed.candidate .shoulders {
+      background: linear-gradient(160deg, #333A48, #1B1F27);
+    }
+
+    .feed.ai .head {
+      background: linear-gradient(160deg, var(--orange-light), var(--orange));
+    }
+
+    .feed.ai .shoulders {
+      background: linear-gradient(160deg, var(--orange), #8A3C0E);
+    }
+
+    /* speech bubble anchored beside each person */
+    .bubble {
+      position: absolute;
+      top: 16px;
+      left: 12px;
+      right: 12px;
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      backdrop-filter: blur(14px);
+      opacity: 0;
+    }
+
+    .bubble-ai {
+      animation: bubblePop 0.4s ease 2.85s forwards;
+    }
+
+    .bubble-candidate {
+      animation: bubblePop 0.4s ease 4.4s forwards;
+      min-height: 34px;
+    }
+
+    @keyframes bubblePop {
+      from {
+        opacity: 0;
+        transform: translateY(-6px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .bubble-candidate .cap-line {
+      font-size: 11px;
+      color: var(--text-lo);
+      line-height: 1.5;
+    }
+
+    .tag {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      font-size: 10px;
+      color: var(--text-lo);
+      background: rgba(0, 0, 0, 0.4);
+      padding: 4px 8px;
+      border-radius: 6px;
+      z-index: 2;
+    }
+
+    .waveform {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 36px;
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      padding: 0 10px 8px;
+    }
+
+    .waveform span {
+      flex: 1;
+      background: var(--orange);
+      opacity: 0.7;
+      border-radius: 2px;
+      animation: wave 1.1s ease-in-out infinite;
+    }
+
+    .waveform span:nth-child(2n) {
+      animation-delay: 0.15s;
+    }
+
+    .waveform span:nth-child(3n) {
+      animation-delay: 0.3s;
+    }
+
+    .waveform span:nth-child(5n) {
+      animation-delay: 0.45s;
+    }
+
+    @keyframes wave {
+
+      0%,
+      100% {
+        height: 20%;
+      }
+
+      50% {
+        height: 85%;
+      }
+    }
+
+    .cap-word {
+      opacity: 0;
+      animation: capIn 0.25s forwards;
+    }
+
+    /* ---------- SCENE 3 : 7 - 11s ---------- */
+    #s3 {
+      animation: s3fade 15s infinite;
+      padding: 44px 60px;
+    }
+
+    @keyframes s3fade {
+
+      0%,
+      45.5% {
+        opacity: 0
+      }
+
+      47% {
+        opacity: 1
+      }
+
+      72% {
+        opacity: 1
+      }
+
+      74% {
+        opacity: 0
+      }
+
+      100% {
+        opacity: 0
+      }
+    }
+
+    .typewriter2 {
+      font-size: 13.5px;
+      color: var(--text-hi);
+      font-weight: 500;
+      line-height: 1.4;
+      white-space: nowrap;
+      overflow: hidden;
+      border-right: 2px solid var(--orange);
+      width: 0;
+      animation: type2 2.0s steps(36, end) 7.1s forwards, blink 0.7s step-end infinite 7.1s;
+    }
+
+    .split-mini {
+      display: flex;
+      gap: 10px;
+      height: 110px;
+      margin-bottom: 18px;
+      max-width: 420px;
+    }
+
+    .feed-mini {
+      flex: 1;
+      border-radius: 12px;
+      border: 1px solid var(--panel-border);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .feed-mini.candidate {
+      background: linear-gradient(160deg, #161A22, #0E1015);
+    }
+
+    .feed-mini.ai {
+      background: linear-gradient(160deg, #241407, #150C05);
+    }
+
+    .person-mini {
+      position: relative;
+      width: 60px;
+      height: 88px;
+    }
+
+    .person-mini .head {
+      position: absolute;
+      left: 50%;
+      top: 2px;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      transform: translateX(-50%);
+    }
+
+    .person-mini .shoulders {
+      position: absolute;
+      left: 50%;
+      bottom: 0;
+      width: 76px;
+      height: 56px;
+      border-radius: 36px 36px 0 0;
+      transform: translateX(-50%);
+    }
+
+    .feed-mini.candidate .head {
+      background: linear-gradient(160deg, #4A5266, #262B36);
+    }
+
+    .feed-mini.candidate .shoulders {
+      background: linear-gradient(160deg, #333A48, #1B1F27);
+    }
+
+    .feed-mini.ai .head {
+      background: linear-gradient(160deg, var(--orange-light), var(--orange));
+    }
+
+    .feed-mini.ai .shoulders {
+      background: linear-gradient(160deg, var(--orange), #8A3C0E);
+    }
+
+    .feed-mini .tag {
+      font-size: 9px;
+      padding: 3px 6px;
+    }
+
+    .panels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      backdrop-filter: blur(14px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      opacity: 0;
+      transform: translateX(24px);
+      animation: slideIn 0.5s ease forwards;
+    }
+
+    .panel:nth-child(1) {
+      animation-delay: 7.3s;
+    }
+
+    .panel:nth-child(2) {
+      animation-delay: 7.6s;
+    }
+
+    .panel:nth-child(3) {
+      animation-delay: 7.9s;
+    }
+
+    .panel:nth-child(4) {
+      animation-delay: 8.2s;
+    }
+
+    .panel:nth-child(5) {
+      animation-delay: 8.5s;
+    }
+
+    @keyframes slideIn {
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    .p-label {
+      font-size: 12.5px;
+      color: var(--text-hi);
+    }
+
+    .p-sub {
+      font-size: 11px;
+      color: var(--text-lo);
+      margin-top: 2px;
+    }
+
+    .score-num {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--orange);
+    }
+
+    .checkmark {
+      color: var(--orange);
+      margin-right: 8px;
+    }
+
+    /* ---------- SCENE 4 : 11 - 15s ---------- */
+    #s4 {
+      animation: s4fade 15s infinite;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 70px;
+      padding: 40px;
+    }
+
+    @keyframes s4fade {
+
+      0%,
+      73% {
+        opacity: 0
+      }
+
+      75% {
+        opacity: 1
+      }
+
+      97% {
+        opacity: 1
+      }
+
+      100% {
+        opacity: 0
+      }
+    }
+
+    .dash {
+      width: 440px;
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      padding: 22px;
+      backdrop-filter: blur(14px);
+      transform: scale(0.95);
+      animation: dashPop 0.5s ease 11.3s forwards;
+      opacity: 0;
+    }
+
+    @keyframes dashPop {
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    .dash-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 18px;
+    }
+
+    .dash-label {
+      font-size: 12px;
+      color: var(--text-lo);
+    }
+
+    .dash-score {
+      font-size: 30px;
+      font-weight: 700;
+      color: var(--orange);
+    }
+
+    .bars {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      height: 90px;
+      margin-bottom: 18px;
+    }
+
+    .bar {
+      flex: 1;
+      background: linear-gradient(180deg, var(--orange-light), var(--orange));
+      border-radius: 6px 6px 0 0;
+      height: 0;
+      animation: barGrow 0.8s ease forwards;
+    }
+
+    .bar:nth-child(1) {
+      animation-delay: 11.5s;
+      --h: 70%;
+    }
+
+    .bar:nth-child(2) {
+      animation-delay: 11.65s;
+      --h: 95%;
+    }
+
+    .bar:nth-child(3) {
+      animation-delay: 11.8s;
+      --h: 85%;
+    }
+
+    .bar:nth-child(4) {
+      animation-delay: 11.95s;
+      --h: 60%;
+    }
+
+    @keyframes barGrow {
+      to {
+        height: var(--h);
+      }
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-lo);
+      padding: 6px 0;
+      border-top: 1px solid var(--panel-border);
+    }
+
+    .stat-row span:last-child {
+      color: var(--text-hi);
+      font-weight: 500;
+    }
+
+    .logo-wrap {
+      text-align: center;
+      opacity: 0;
+      animation: logoIn 0.8s ease 12.6s forwards;
+    }
+
+    .logo-name {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--text-hi);
+      letter-spacing: -0.5px;
+    }
+
+    .logo-name span {
+      color: var(--orange);
+    }
+
+    .tagline {
+      font-size: 12.5px;
+      color: var(--text-lo);
+      margin-top: 6px;
+      letter-spacing: 0.3px;
+    }
+
+    @keyframes logoIn {
+      to {
+        opacity: 1;
+      }
+    }
+
+    .fadeout {
+      position: absolute;
+      inset: 0;
+      background: #000;
+      opacity: 0;
+      animation: outFade 15s infinite;
+      pointer-events: none;
+    }
+
+    @keyframes outFade {
+
+      0%,
+      97% {
+        opacity: 0
+      }
+
+      99.5% {
+        opacity: 1
+      }
+
+      100% {
+        opacity: 1
+      }
+    }
+
+    @keyframes type1 {
+      to {
+        width: 15.2ch;
+      }
+    }
+
+    @keyframes type2 {
+      to {
+        width: 24.5ch;
+      }
+    }
+
+    @keyframes blink {
+      50% {
+        border-color: transparent;
+      }
+    }
+
+    @keyframes capIn {
+      to {
+        opacity: 1;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="stage">
+    <div class="noise"></div>
+
+    <div class="scene" id="s1">
+      <div class="laptop">
+        <div class="laptop-screen">
+          <div class="brand-row">
+            <div class="dot"></div>
+            <div class="brand-name">OFFERLYIQ.AI</div>
+          </div>
+          <div class="headline">AI Mock Interview</div>
+          <div class="subline">Practice real interview questions with live AI feedback.</div>
+          <div class="cta">Start interview →</div>
+        </div>
+      </div>
+      <div class="flash"></div>
+    </div>
+
+    <div class="scene" id="s2">
+      <div class="split">
+        <div class="feed ai">
+          <div class="bubble bubble-ai">
+            <div class="q-eyebrow">Interviewer asks</div>
+            <div class="typewriter">Tell me about yourself.</div>
+          </div>
+          <div class="person">
+            <div class="head"></div>
+            <div class="shoulders"></div>
+          </div>
+          <div class="tag">AI interviewer</div>
+        </div>
+        <div class="feed candidate">
+          <div class="bubble bubble-candidate">
+            <div class="q-eyebrow" style="color:var(--text-lo);">Candidate answers</div>
+            <div class="cap-line" id="captions"></div>
+          </div>
+          <div class="person">
+            <div class="head"></div>
+            <div class="shoulders"></div>
+          </div>
+          <div class="tag">You</div>
+          <div class="waveform">
+            <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="scene" id="s3">
+      <div class="split-mini">
+        <div class="feed-mini ai">
+          <div class="person-mini">
+            <div class="head"></div>
+            <div class="shoulders"></div>
+          </div>
+          <div class="tag">AI interviewer</div>
+        </div>
+        <div class="feed-mini candidate">
+          <div class="person-mini">
+            <div class="head"></div>
+            <div class="shoulders"></div>
+          </div>
+          <div class="tag">You</div>
+        </div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <div class="q-eyebrow">Interviewer asks</div>
+        <div class="typewriter2">Explain your most challenging React project.</div>
+      </div>
+      <div class="panels">
+        <div class="panel"><span class="p-label"><span class="checkmark">✓</span>Live transcript</span></div>
+        <div class="panel"><span class="p-label"><span class="checkmark">✓</span>Communication analysis</span><span
+            class="p-sub">Clear &amp; concise</span></div>
+        <div class="panel"><span class="p-label"><span class="checkmark">✓</span>Confidence score</span><span
+            class="score-num" id="confNum">0%</span></div>
+        <div class="panel"><span class="p-label"><span class="checkmark">✓</span>Speaking pace</span><span
+            class="p-sub">Steady</span></div>
+        <div class="panel"><span class="p-label"><span class="checkmark">✓</span>Eye contact</span><span
+            class="p-sub">Strong</span></div>
+      </div>
+    </div>
+
+    <div class="scene" id="s4">
+      <div class="dash">
+        <div class="dash-top"><span class="dash-label">Overall score</span><span class="dash-score">94%</span></div>
+        <div class="bars">
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+        </div>
+        <div class="stat-row"><span>Communication</span><span>Excellent</span></div>
+        <div class="stat-row"><span>Technical skills</span><span>Strong</span></div>
+        <div class="stat-row"><span>Confidence</span><span>High</span></div>
+        <div class="stat-row"><span>AI suggestions</span><span>3 improvements</span></div>
+      </div>
+      <div class="logo-wrap">
+        <div class="logo-name">Offerly<span>IQ</span>.ai</div>
+        <div class="tagline">Practice smarter. Interview better.</div>
+      </div>
+    </div>
+
+    <div class="fadeout"></div>
+  </div>
+
+  <script>
+    // Word-by-word live captions, timed within scene 2 (starts ~4.6s into the loop)
+    const words = "So I'm a frontend engineer with three years of experience building interfaces.".split(' ');
+    const capEl = document.getElementById('captions');
+    function buildCaptions() {
+      capEl.innerHTML = '';
+      words.forEach((w, i) => {
+        const s = document.createElement('span');
+        s.className = 'cap-word';
+        s.textContent = w + ' ';
+        s.style.animationDelay = (4.6 + i * 0.22) + 's';
+        capEl.appendChild(s);
+      });
+    }
+    buildCaptions();
+
+    // Confidence score counter, timed within scene 3
+    const confEl = document.getElementById('confNum');
+    function runCounter() {
+      const start = performance.now();
+      const delay = 8500; // ms into loop when count begins
+      const dur = 1200;
+      function frame(now) {
+        const elapsed = now - start;
+        if (elapsed < delay) { requestAnimationFrame(frame); return; }
+        const t = Math.min(1, (elapsed - delay) / dur);
+        confEl.textContent = Math.round(t * 94) + '%';
+        if (t < 1) requestAnimationFrame(frame);
+        else confEl.textContent = '94%';
+      }
+      requestAnimationFrame(frame);
+    }
+
+    // Loop every 15s: rebuild captions + restart counter each cycle
+    let loopStart = performance.now();
+    function loopTick(now) {
+      if (now - loopStart >= 15000) {
+        loopStart = now;
+        buildCaptions();
+        runCounter();
+      }
+      requestAnimationFrame(loopTick);
+    }
+    runCounter();
+    requestAnimationFrame(loopTick);
+  </script>
+</body>
+
+</html>

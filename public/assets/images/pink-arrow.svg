@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="60" height="40" viewBox="0 0 60 40" fill="none">
+  <!-- More natural hand-drawn style left pointing arrow -->
+  <path d="M55 25 C 40 10, 20 15, 5 25" stroke="#ec4899" stroke-width="2.5" stroke-linecap="round" fill="none" />
+  <path d="M15 15 L 5 25 L 15 32" stroke="#ec4899" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+</svg>

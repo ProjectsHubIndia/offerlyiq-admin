@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="80" height="50" viewBox="0 0 80 50" fill="none">
+  <!-- Hand-drawn style right-pointing arrow with an exact upward arc -->
+  <path d="M5 35 C 20 5, 50 5, 75 25" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" fill="none" />
+  <path d="M60 18 L 75 25 L 65 35" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+</svg>
