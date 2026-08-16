@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useTheme } from "next-themes";
 import { useState, useEffect } from "react";
 
-import { PersonaType } from "@/app/page";
+type PersonaType = "candidate" | "hr" | "admin" | "coding";
 
 export function LogoSplit({
   priority = false,

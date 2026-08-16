@@ -275,7 +275,7 @@ export default function DiscountsPage() {
                 columns={redemptionColumns} 
                 data={redemptions} 
                 isLoading={redemptionsLoading} 
-                keyExtractor={(r, idx) => r.id || String(idx)} 
+                keyExtractor={(r: any) => r.id || Math.random().toString()} 
                 emptyMessage={
                   <div className="text-center text-muted-foreground">
                     No redemptions found for this discount yet.

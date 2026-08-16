@@ -266,7 +266,7 @@ export default function AdminDashboard() {
                       <LabelList 
                         dataKey="amount" 
                         position="top" 
-                        formatter={(val: number) => `$${val.toFixed(2)}`}
+                        formatter={(val: any) => `$${Number(val).toFixed(2)}`}
                         style={{ fill: 'hsl(var(--foreground))', fontSize: 12, fontWeight: 'bold' }}
                       />
                     </Bar>
@@ -335,7 +335,7 @@ export default function AdminDashboard() {
                   columns={moduleUsageColumns} 
                   data={moduleUsageData} 
                   isLoading={loading} 
-                  keyExtractor={(m, idx) => m.module_code || String(idx)} 
+                  keyExtractor={(m: any) => m.module_code || Math.random().toString()} 
                 />
               </div>
             ) : (
@@ -358,7 +358,7 @@ export default function AdminDashboard() {
                   columns={planSalesColumns} 
                   data={planSalesData} 
                   isLoading={loading} 
-                  keyExtractor={(p, idx) => p.plan_code || String(idx)} 
+                  keyExtractor={(p: any) => p.plan_code || Math.random().toString()} 
                 />
               </div>
             ) : (

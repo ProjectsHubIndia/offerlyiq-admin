@@ -983,7 +983,10 @@ export const admin = {
   // Billing Ops
   getWebhooks: (token?: string, page = 1, size = 10) =>
     axiosMain
-      .get("/admin/billing/webhooks", { ...authConfig(token), params: { page, size } })
+      .get("/admin/billing/webhooks", {
+        ...authConfig(token),
+        params: { page, size },
+      })
       .then((r) => r.data),
   getWebhookDetail: (id: string, token?: string) =>
     axiosMain
@@ -995,11 +998,17 @@ export const admin = {
       .then((r) => r.data),
   getTransactions: (token?: string, page = 1, size = 10) =>
     axiosMain
-      .get("/admin/billing/transactions", { ...authConfig(token), params: { page, size } })
+      .get("/admin/billing/transactions", {
+        ...authConfig(token),
+        params: { page, size },
+      })
       .then((r) => r.data),
   getChargebacks: (token?: string, page = 1, size = 10) =>
     axiosMain
-      .get("/admin/billing/chargebacks", { ...authConfig(token), params: { page, size } })
+      .get("/admin/billing/chargebacks", {
+        ...authConfig(token),
+        params: { page, size },
+      })
       .then((r) => r.data),
   refundTransaction: (id: string, reason: string, token?: string) =>
     axiosMain
@@ -1008,16 +1017,6 @@ export const admin = {
         { reason },
         authConfig(token),
       )
-      .then((r) => r.data),
-
-  // Analytics
-  overview: (token?: string) =>
-    axiosMain
-      .get("/admin/analytics/overview", authConfig(token))
-      .then((r) => r.data),
-  revenue: (token?: string) =>
-    axiosMain
-      .get("/admin/analytics/revenue", authConfig(token))
       .then((r) => r.data),
   creditFlow: (token?: string) =>
     axiosMain
