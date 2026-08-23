@@ -38,6 +38,12 @@ export default function BillingOpsPage() {
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  // Webhook filters
+  const [webhookFilterStatus, setWebhookFilterStatus] = useState("all");
+  const [webhookFilterEvent, setWebhookFilterEvent] = useState("all");
+  const [webhookFilterSince, setWebhookFilterSince] = useState("");
+  const [webhookFilterUntil, setWebhookFilterUntil] = useState("");
+
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [selectedTx, setSelectedTx] = useState<any>(null);
   const [refundReason, setRefundReason] = useState("");
@@ -53,7 +59,12 @@ export default function BillingOpsPage() {
       const token = getAccessToken() || undefined;
 
       if (activeTab === "webhooks") {
-        const response = await admin.getWebhooks(token, currentPage, pageSize);
+        const response = await admin.getWebhooks(token, currentPage, pageSize, {
+          status: webhookFilterStatus,
+          eventType: webhookFilterEvent,
+          since: webhookFilterSince ? new Date(webhookFilterSince).toISOString() : undefined,
+          until: webhookFilterUntil ? new Date(webhookFilterUntil).toISOString() : undefined,
+        });
         setWebhooks(response?.items || []);
         setTotalPages(response?.pages || 1);
       } else if (activeTab === "transactions") {
@@ -78,7 +89,7 @@ export default function BillingOpsPage() {
 
   useEffect(() => {
     fetchData();
-  }, [activeTab, currentPage]);
+  }, [activeTab, currentPage, webhookFilterStatus, webhookFilterEvent, webhookFilterSince, webhookFilterUntil]);
 
   const handleReplay = async (id: string) => {
     setActionLoading(id);
@@ -238,6 +249,8 @@ export default function BillingOpsPage() {
                 ? "bg-green-500/10 text-green-500"
                 : tx.status === "refunded"
                   ? "bg-yellow-500/10 text-yellow-500"
+                  : tx.status === "refund_pending"
+                    ? "bg-orange-500/10 text-orange-500"
                   : tx.status === "chargeback"
                     ? "bg-destructive/10 text-destructive"
                     : "bg-muted text-muted-foreground"
@@ -293,7 +306,12 @@ export default function BillingOpsPage() {
         header: "Actions",
         align: "right",
         render: (tx) => (
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            {tx.status === "refund_pending" && (
+              <span className="text-xs text-muted-foreground italic flex items-center">
+                Refund Pending
+              </span>
+            )}
             {tx.status === "completed" && (
               <Button
                 variant="outline"
@@ -373,6 +391,47 @@ export default function BillingOpsPage() {
               "Disputed or charged back transactions"}
           </p>
         </div>
+
+        {activeTab === "webhooks" && (
+          <div className="flex gap-4 items-center flex-wrap">
+            <select
+              value={webhookFilterStatus}
+              onChange={(e) => setWebhookFilterStatus(e.target.value)}
+              className="px-3 py-1.5 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="all">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="processed">Processed</option>
+              <option value="failed">Failed</option>
+              <option value="ignored">Ignored</option>
+            </select>
+            <input
+              type="text"
+              placeholder="Filter by event type..."
+              value={webhookFilterEvent === "all" ? "" : webhookFilterEvent}
+              onChange={(e) => setWebhookFilterEvent(e.target.value || "all")}
+              className="px-3 py-1.5 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary w-64"
+            />
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">From:</span>
+              <input
+                type="date"
+                value={webhookFilterSince}
+                onChange={(e) => setWebhookFilterSince(e.target.value)}
+                className="px-3 py-1.5 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">To:</span>
+              <input
+                type="date"
+                value={webhookFilterUntil}
+                onChange={(e) => setWebhookFilterUntil(e.target.value)}
+                className="px-3 py-1.5 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+          </div>
+        )}
 
         {activeTab === "webhooks" && (
           <DataTable

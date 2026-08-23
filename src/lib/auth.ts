@@ -25,3 +25,7 @@ export function clearTokens(): void {
 export function isAuthenticated(): boolean {
   return !!getAccessToken();
 }
+
+export type Role = "user" | "admin" | "superadmin";
+export const isAdmin = (r?: Role) => r === "admin" || r === "superadmin";
+export const isSuperadmin = (r?: Role) => r === "superadmin";

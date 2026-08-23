@@ -848,33 +848,33 @@ const authConfig = (token?: string) =>
 
 export const admin = {
   // Analytics
-  overview: (token?: string) =>
+  overview: (token?: string, days?: number) =>
     axiosMain
-      .get("/admin/analytics/overview", authConfig(token))
+      .get("/admin/analytics/overview", { ...authConfig(token), params: days ? { days } : undefined })
       .then((r) => r.data),
-  revenue: (token?: string) =>
+  revenue: (token?: string, days?: number) =>
     axiosMain
-      .get("/admin/analytics/revenue", authConfig(token))
+      .get("/admin/analytics/revenue", { ...authConfig(token), params: days ? { days } : undefined })
       .then((r) => r.data),
-  credits: (token?: string) =>
+  credits: (token?: string, days?: number) =>
     axiosMain
-      .get("/admin/analytics/credits", authConfig(token))
+      .get("/admin/analytics/credits", { ...authConfig(token), params: days ? { days } : undefined })
       .then((r) => r.data),
-  modulesAnalytics: (token?: string) =>
+  modulesAnalytics: (token?: string, days?: number) =>
     axiosMain
-      .get("/admin/analytics/modules", authConfig(token))
+      .get("/admin/analytics/modules", { ...authConfig(token), params: days ? { days } : undefined })
       .then((r) => r.data),
-  plansAnalytics: (token?: string) =>
+  plansAnalytics: (token?: string, days?: number) =>
     axiosMain
-      .get("/admin/analytics/plans", authConfig(token))
+      .get("/admin/analytics/plans", { ...authConfig(token), params: days ? { days } : undefined })
       .then((r) => r.data),
 
   // Users
-  getUsers: (token?: string, page = 1, size = 20, q?: string) =>
+  getUsers: (token?: string, page = 1, size = 20, q?: string, role?: string, is_active?: string) =>
     axiosMain
       .get("/admin/users", {
         ...authConfig(token),
-        params: { page, size, ...(q ? { q } : {}) },
+        params: { page, size, ...(q ? { q } : {}), ...(role && role !== "all" ? { role } : {}), ...(is_active && is_active !== "all" ? { is_active: is_active === "active" } : {}) },
       })
       .then((r) => r.data),
   getUser: (id: string, token?: string) =>
@@ -886,7 +886,7 @@ export const admin = {
     token?: string,
   ) =>
     axiosMain
-      .patch(`/admin/users/${id}/status`, { status, reason }, authConfig(token))
+      .patch(`/admin/users/${id}/status`, { is_active: status === "active", reason }, authConfig(token))
       .then((r) => r.data),
   updateUserRole: (id: string, role: string, reason: string, token?: string) =>
     axiosMain
@@ -902,21 +902,22 @@ export const admin = {
       .then((r) => r.data),
   grantUserCredits: (
     id: string,
-    amount: number,
+    delta: number,
     reason: string,
+    expires_in_days?: number,
     token?: string,
   ) =>
     axiosMain
-      .post(`/admin/users/${id}/credits`, { amount, reason }, authConfig(token))
+      .post(`/admin/users/${id}/credits`, { delta, reason, expires_in_days }, authConfig(token))
       .then((r) => r.data),
 
   userMargin: (id: string, token?: string) =>
     axiosMain
       .get(`/admin/analytics/users/${id}/margin`, authConfig(token))
       .then((r) => r.data),
-  reinstateUser: (id: string, token?: string) =>
+  reinstateUser: (id: string, reason: string, token?: string) =>
     axiosMain
-      .post(`/admin/billing/users/${id}/reinstate`, {}, authConfig(token))
+      .post(`/admin/billing/users/${id}/reinstate`, { reason }, authConfig(token))
       .then((r) => r.data),
 
   // Plans
@@ -946,6 +947,11 @@ export const admin = {
     axiosMain
       .post(`/admin/plans/${id}/unpublish`, undefined, authConfig(token))
       .then((r) => r.data),
+  archivePlan: (id: string, token?: string) =>
+    axiosMain
+      .post(`/admin/plans/${id}/archive`, undefined, authConfig(token))
+      .then((r) => r.data),
+
 
   // Catalog
   getModules: (token?: string) =>
@@ -981,13 +987,19 @@ export const admin = {
 
   // Billing Ops
   // Billing Ops
-  getWebhooks: (token?: string, page = 1, size = 10) =>
-    axiosMain
+  getWebhooks: (token?: string, page = 1, size = 10, filters?: { status?: string, eventType?: string, since?: string, until?: string }) => {
+    const params: any = { page, size };
+    if (filters?.status && filters.status !== "all") params.status = filters.status;
+    if (filters?.eventType && filters.eventType !== "all") params.event_type = filters.eventType;
+    if (filters?.since) params.since = filters.since;
+    if (filters?.until) params.until = filters.until;
+    return axiosMain
       .get("/admin/billing/webhooks", {
         ...authConfig(token),
-        params: { page, size },
+        params,
       })
-      .then((r) => r.data),
+      .then((r) => r.data);
+  },
   getWebhookDetail: (id: string, token?: string) =>
     axiosMain
       .get(`/admin/billing/webhooks/${id}`, authConfig(token))

@@ -30,11 +30,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isAuth, setIsAuth] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    setIsAuth(isAuthenticated());
-  }, [pathname]);
+  let sessionContext = null;
+  try {
+    sessionContext = require("@/components/layout/admin-session-provider").useAdminSession();
+  } catch (e) {
+    // If not within provider (like during some initial renders), handle gracefully
+  }
 
   const handleLogout = async () => {
     try {
@@ -51,19 +52,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     router.push("/login");
   };
 
-  useEffect(() => {
-    if (isAuth === false && pathname !== "/login") {
-      router.replace("/login");
-    }
-  }, [isAuth, router, pathname]);
-
   if (pathname === "/login") {
     return <>{children}</>;
-  }
-
-  // Prevent flash of content if not auth
-  if (isAuth === false) {
-    return null;
   }
 
   return (
@@ -118,6 +108,20 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           </nav>
 
           <div className="pt-4 border-t border-border mt-auto">
+            {sessionContext?.user && (
+              <div className="mb-4 px-3 flex flex-col gap-1 overflow-hidden">
+                <span className="text-sm font-medium truncate" title={sessionContext.user.email}>
+                  {sessionContext.user.email}
+                </span>
+                <div>
+                  <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${
+                    sessionContext.user.role === 'superadmin' ? 'bg-purple-500/20 text-purple-600' : 'bg-blue-500/20 text-blue-600'
+                  }`}>
+                    {sessionContext.user.role}
+                  </span>
+                </div>
+              </div>
+            )}
             <button
               onClick={handleLogout}
               className="flex items-center w-full gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"

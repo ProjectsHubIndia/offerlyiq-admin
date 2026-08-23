@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, Plus, Edit2, Globe, EyeOff, Package, DollarSign, ListChecks, X, Settings } from "lucide-react";
+import { ConfirmAction } from "@/components/ConfirmAction";
 
 export default function PlansPage() {
   const [plans, setPlans] = useState<any[]>([]);
@@ -33,10 +34,24 @@ export default function PlansPage() {
   });
   const [createPlanLoading, setCreatePlanLoading] = useState(false);
 
-  // Edit Plan Details Modal
   const [showEditPlanModal, setShowEditPlanModal] = useState(false);
   const [editPlanData, setEditPlanData] = useState<any>({});
   const [editPlanLoading, setEditPlanLoading] = useState(false);
+  
+  // ConfirmAction state
+  const [confirmState, setConfirmState] = useState<{
+    isOpen: boolean;
+    title: string;
+    consequence: string;
+    isDanger: boolean;
+    action: (reason: string) => Promise<void>;
+  }>({
+    isOpen: false,
+    title: "",
+    consequence: "",
+    isDanger: false,
+    action: async () => {},
+  });
 
   const fetchPlans = async () => {
     setLoading(true);
@@ -56,20 +71,53 @@ export default function PlansPage() {
     fetchPlans();
   }, []);
 
-  const handleTogglePublish = async (id: string, isPublished: boolean) => {
-    try {
-      const { getAccessToken } = await import("@/lib/auth");
-      const token = getAccessToken() || undefined;
-      if (isPublished) {
-        await admin.unpublishPlan(id, token);
-      } else {
-        await admin.publishPlan(id, token);
-      }
-      fetchPlans();
-    } catch (err) {
-      console.error("Failed to toggle publish status", err);
-      alert("Error updating plan status");
+  const handleTogglePublish = (plan: any) => {
+    const isPublished = plan.status === "published";
+    if (isPublished) {
+      setConfirmState({
+        isOpen: true,
+        title: `Unpublish ${plan.name}?`,
+        consequence: "New users will not be able to purchase this plan. Existing subscriptions continue.",
+        isDanger: true,
+        action: async (reason: string) => {
+          const { getAccessToken } = await import("@/lib/auth");
+          const token = getAccessToken() || undefined;
+          await admin.unpublishPlan(plan.id, token);
+          setConfirmState(prev => ({ ...prev, isOpen: false }));
+          fetchPlans();
+        }
+      });
+    } else {
+      setConfirmState({
+        isOpen: true,
+        title: `Publish ${plan.name}?`,
+        consequence: "This plan will become visible for users to purchase.",
+        isDanger: false,
+        action: async (reason: string) => {
+          const { getAccessToken } = await import("@/lib/auth");
+          const token = getAccessToken() || undefined;
+          await admin.publishPlan(plan.id, token);
+          setConfirmState(prev => ({ ...prev, isOpen: false }));
+          fetchPlans();
+        }
+      });
     }
+  };
+
+  const handleArchive = (plan: any) => {
+    setConfirmState({
+      isOpen: true,
+      title: `Archive ${plan.name}?`,
+      consequence: "Archived plans are completely hidden from all API lists and cannot be unarchived. Are you sure?",
+      isDanger: true,
+      action: async (reason: string) => {
+        const { getAccessToken } = await import("@/lib/auth");
+        const token = getAccessToken() || undefined;
+        await admin.archivePlan(plan.id, token);
+        setConfirmState(prev => ({ ...prev, isOpen: false }));
+        fetchPlans();
+      }
+    });
   };
 
   const handleOpenPrices = (plan: any) => {
@@ -203,12 +251,16 @@ export default function PlansPage() {
         ) : (
           plans.map((plan) => {
             const isPublished = plan.status === "published";
-            const usdPriceObj = plan.prices?.find((p: any) => p.currency_code === "USD");
-            const usdPrice = usdPriceObj ? (usdPriceObj.amount_minor / 100).toFixed(2) : "0.00";
+            const isArchived = plan.status === "archived";
+            const isDraft = plan.status === "draft";
+            
+            const priceList: string = (plan.prices ?? [])
+              .map((p: any) => `${p.currency_code} ${(p.amount_minor / 100).toLocaleString()}`)
+              .join("  ·  ") || "No price set";
             
             return (
-              <Card key={plan.id} className="relative overflow-hidden flex flex-col hover:border-primary/50 transition-all">
-                <div className={`absolute top-0 inset-x-0 h-1 ${isPublished ? "bg-green-500" : "bg-muted"}`} />
+              <Card key={plan.id} className={`relative overflow-hidden flex flex-col hover:border-primary/50 transition-all ${isArchived ? "opacity-60 grayscale hover:grayscale-0" : ""}`}>
+                <div className={`absolute top-0 inset-x-0 h-1 ${isPublished ? "bg-green-500" : isArchived ? "bg-red-500" : "bg-muted"}`} />
                 <CardHeader className="pb-4">
                   <div className="flex justify-between items-start">
                     <div>
@@ -225,18 +277,20 @@ export default function PlansPage() {
                     <div className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase ${
                       isPublished 
                         ? "bg-green-500/10 text-green-500 border border-green-500/20" 
+                        : isArchived
+                        ? "bg-red-500/10 text-red-500 border border-red-500/20"
                         : "bg-muted text-muted-foreground border border-border"
                     }`}>
-                      {isPublished ? "Live" : plan.status || "Draft"}
+                      {plan.status || "Draft"}
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col">
                   <div className="mb-4">
-                    <span className="text-3xl font-bold">${usdPrice}</span>
-                    <span className="text-muted-foreground text-sm uppercase ml-1">
-                      {plan.billing_type === "one_time" ? "One-Time" : plan.billing_type}
-                    </span>
+                    <span className="text-xl font-bold">{priceList}</span>
+                  <span className="text-sm font-normal text-muted-foreground ml-1">
+                    / {plan.billing_type === "one_time" ? "one-time" : "mo"}
+                  </span>
                   </div>
                   
                   <div className="space-y-2 mb-6 flex-1">
@@ -282,7 +336,8 @@ export default function PlansPage() {
                       variant={isPublished ? "outline" : "default"} 
                       size="sm" 
                       className={`flex-1 min-w-[30%] gap-2 ${isPublished ? "hover:bg-destructive/10 hover:text-destructive hover:border-destructive" : ""}`}
-                      onClick={() => handleTogglePublish(plan.id, isPublished)}
+                      onClick={() => handleTogglePublish(plan)}
+                      disabled={isArchived}
                     >
                       {isPublished ? (
                         <><EyeOff className="w-3.5 h-3.5" /> Unpublish</>
@@ -290,6 +345,17 @@ export default function PlansPage() {
                         <><Globe className="w-3.5 h-3.5" /> Publish</>
                       )}
                     </Button>
+                    {!isArchived && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="flex-1 min-w-[30%] gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => handleArchive(plan)}
+                        title="Archive Plan"
+                      >
+                        <X className="w-3.5 h-3.5" /> Archive
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -561,6 +627,15 @@ export default function PlansPage() {
           </div>
         </div>
       )}
+      {/* Confirm Action Component */}
+      <ConfirmAction
+        isOpen={confirmState.isOpen}
+        title={confirmState.title}
+        consequence={confirmState.consequence}
+        isDanger={confirmState.isDanger}
+        onClose={() => setConfirmState(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmState.action}
+      />
     </div>
   );
 }

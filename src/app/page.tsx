@@ -23,6 +23,7 @@ import { DataTable, type Column } from "@/components/ui/data-table";
 export default function AdminDashboard() {
   const [overviewData, setOverviewData] = useState<any>(null);
   const [revenueData, setRevenueData] = useState<any[]>([]);
+  const [daysFilter, setDaysFilter] = useState<number>(30);
   const [creditFlowData, setCreditFlowData] = useState<any>(null);
   const [moduleUsageData, setModuleUsageData] = useState<any[]>([]);
   const [planSalesData, setPlanSalesData] = useState<any[]>([]);
@@ -35,18 +36,27 @@ export default function AdminDashboard() {
         const { getAccessToken } = await import("@/lib/auth");
         const token = getAccessToken() || undefined;
         
-        const [overviewRes, revenueRes, creditFlowRes, moduleUsageRes, planSalesRes] = await Promise.all([
-          admin.overview(token),
-          admin.revenue(token).catch(() => []),
-          admin.creditFlow(token).catch(() => null),
-          admin.moduleUsage(token).catch(() => []),
-          admin.planSales(token).catch(() => []),
+        const results = await Promise.allSettled([
+          admin.overview(token, daysFilter),
+          admin.revenue(token, daysFilter),
+          admin.creditFlow(token, daysFilter),
+          admin.moduleUsage(token, daysFilter),
+          admin.planSales(token, daysFilter),
         ]);
+        
+        const overviewRes = results[0].status === "fulfilled" ? results[0].value : null;
+        const revenueRes = results[1].status === "fulfilled" ? results[1].value : [];
+        const creditFlowRes = results[2].status === "fulfilled" ? results[2].value : null;
+        const moduleUsageRes = results[3].status === "fulfilled" ? results[3].value : [];
+        const planSalesRes = results[4].status === "fulfilled" ? results[4].value : [];
         
         setOverviewData(overviewRes);
         
         // Format revenue data for Recharts (convert cents to dollars, period to date)
-        const formattedRevenue = (revenueRes || []).map((item: any) => {
+        const baseCurrency = overviewRes?.revenue_currency || "USD";
+        const formattedRevenue = (revenueRes || [])
+          .filter((item: any) => item.currency_code === baseCurrency)
+          .map((item: any) => {
           let shortDate = item.period;
           try {
             const d = new Date(item.period);
@@ -58,6 +68,8 @@ export default function AdminDashboard() {
           return {
             date: shortDate,
             amount: item.value ? item.value / 100 : 0,
+            display: item.display,
+            currency: item.currency_code,
             fullDate: item.period
           };
         });
@@ -82,7 +94,7 @@ export default function AdminDashboard() {
     };
 
     fetchData();
-  }, []);
+  }, [daysFilter]);
 
   if (loading) {
     return (
@@ -122,6 +134,11 @@ export default function AdminDashboard() {
       render: (p) => <span className="font-medium capitalize">{p.plan_code}</span>,
     },
     {
+      key: "currency_code",
+      header: "Currency",
+      render: (p) => <span className="font-mono text-xs">{p.currency_code}</span>,
+    },
+    {
       key: "purchases",
       header: "Purchases",
       align: "right",
@@ -131,19 +148,26 @@ export default function AdminDashboard() {
       key: "revenue",
       header: "Revenue",
       align: "right",
-      render: (p) => (
-        <span className="font-mono text-green-500">
-          ${(p.revenue_minor / 100).toFixed(2)}
-        </span>
-      ),
+      render: (p) => <span className="font-mono text-green-500">{p.display}</span>,
     },
   ];
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight mb-2">Overview</h1>
-        <p className="text-muted-foreground">Monitor platform performance and metrics.</p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight mb-1">Dashboard</h1>
+          <p className="text-muted-foreground">Overview of platform metrics and revenue.</p>
+        </div>
+        <select
+          value={daysFilter}
+          onChange={(e) => setDaysFilter(Number(e.target.value))}
+          className="px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+        >
+          <option value={7}>Last 7 days</option>
+          <option value={30}>Last 30 days</option>
+          <option value={90}>Last 90 days</option>
+        </select>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -169,11 +193,22 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-emerald-500">
-              ${overviewData?.revenue_minor ? (overviewData.revenue_minor / 100).toFixed(2) : "0.00"}
+              {overviewData?.revenue_by_currency?.find(
+                (r: any) => r.currency_code === overviewData?.revenue_currency,
+              )?.display ?? `${overviewData?.revenue_currency || "USD"} 0`}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Lifetime {overviewData?.revenue_currency || "USD"}
             </p>
+            {overviewData?.revenue_is_partial && (
+              <p className="text-xs text-muted-foreground mt-1">
+                plus{" "}
+                {overviewData.revenue_by_currency
+                  .filter((r: any) => r.currency_code !== overviewData.revenue_currency)
+                  .map((r: any) => r.display)
+                  .join(" · ")}
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -204,6 +239,11 @@ export default function AdminDashboard() {
             <p className="text-xs text-muted-foreground mt-1">
               Cost: ${overviewData?.estimated_cost_usd?.toFixed(2) || "0.00"}
             </p>
+            {overviewData?.margin_excludes_currencies?.length > 0 && (
+              <p className="text-xs text-amber-500/80 mt-1">
+                excludes {overviewData.margin_excludes_currencies.join(", ")} — no FX rate
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -358,7 +398,7 @@ export default function AdminDashboard() {
                   columns={planSalesColumns} 
                   data={planSalesData} 
                   isLoading={loading} 
-                  keyExtractor={(p: any) => p.plan_code || Math.random().toString()} 
+                  keyExtractor={(p: any) => p.plan_code && p.currency_code ? `${p.plan_code}_${p.currency_code}` : p.plan_code || Math.random().toString()} 
                 />
               </div>
             ) : (

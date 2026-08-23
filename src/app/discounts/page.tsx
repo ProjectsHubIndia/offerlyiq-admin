@@ -23,7 +23,7 @@ export default function DiscountsPage() {
   const [redemptionsLoading, setRedemptionsLoading] = useState(false);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createData, setCreateData] = useState({ code: "", type: "percentage", amount: 0, max_redemptions: 0, expires_at: "" });
+  const [createData, setCreateData] = useState({ code: "", name: "", kind: "percentage", amount: 0, currency_code: "USD", max_redemptions: 0, expires_at: "" });
   const [createLoading, setCreateLoading] = useState(false);
 
   const [showEditModal, setShowEditModal] = useState(false);
@@ -83,13 +83,24 @@ export default function DiscountsPage() {
     try {
       const { getAccessToken } = await import("@/lib/auth");
       const token = getAccessToken() || undefined;
+      let finalValue = createData.amount;
+      if (createData.kind === "percentage") {
+        finalValue = createData.amount * 100; // basis points
+      } else if (createData.kind === "flat") {
+        finalValue = Math.round(createData.amount * 100); // minor units
+      }
+
       await admin.createDiscount({
-        ...createData,
+        code: createData.code,
+        name: createData.name,
+        kind: createData.kind,
+        value: finalValue,
+        ...(createData.kind === "flat" ? { currency_code: createData.currency_code } : {}),
         max_redemptions: createData.max_redemptions || null,
         expires_at: createData.expires_at ? new Date(createData.expires_at).toISOString() : null,
       }, token);
       setShowCreateModal(false);
-      setCreateData({ code: "", type: "percentage", amount: 0, max_redemptions: 0, expires_at: "" });
+      setCreateData({ code: "", name: "", kind: "percentage", amount: 0, currency_code: "USD", max_redemptions: 0, expires_at: "" });
       fetchDiscounts();
     } catch (err) {
       console.error("Failed to create discount", err);
@@ -146,16 +157,16 @@ export default function DiscountsPage() {
       ),
     },
     {
-      key: "type",
-      header: "Type",
-      render: (discount) => <span className="capitalize">{discount.type}</span>,
+      key: "kind",
+      header: "Kind",
+      render: (discount) => <span className="capitalize">{discount.kind || discount.type}</span>,
     },
     {
       key: "value",
       header: "Value",
       render: (discount) => (
         <span className="font-medium">
-          {discount.type === "percentage" ? `${discount.amount}%` : `$${discount.amount}`}
+          {(discount.kind || discount.type) === "percentage" ? `${discount.amount}%` : (discount.kind || discount.type) === "bonus_credits" ? `${discount.amount} credits` : `$${(discount.amount / 100).toFixed(2)}`}
         </span>
       ),
     },
@@ -217,9 +228,14 @@ export default function DiscountsPage() {
 
   const redemptionColumns: Column<any>[] = [
     {
-      key: "user_id",
-      header: "User ID",
-      render: (red) => <span className="font-mono text-xs truncate max-w-[200px] block">{red.user_id}</span>,
+      key: "user",
+      header: "User",
+      render: (red) => (
+        <div>
+          <span className="font-medium text-sm block">{red.full_name || red.user_id}</span>
+          {red.email && <span className="text-muted-foreground text-xs">{red.email}</span>}
+        </div>
+      ),
     },
     {
       key: "redeemed_at",
@@ -304,24 +320,38 @@ export default function DiscountsPage() {
             <h2 className="text-xl font-bold mb-4">Create New Discount</h2>
             
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Code</label>
-                <input type="text" value={createData.code} onChange={e => setCreateData({...createData, code: e.target.value})} className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm" placeholder="e.g. SUMMER50" />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Code</label>
+                  <input type="text" value={createData.code} onChange={e => setCreateData({...createData, code: e.target.value.toUpperCase()})} className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm" placeholder="e.g. SUMMER50" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Name <span className="text-destructive">*</span></label>
+                  <input type="text" value={createData.name} onChange={e => setCreateData({...createData, name: e.target.value})} className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm" placeholder="e.g. Summer Sale" />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Type</label>
-                  <select value={createData.type} onChange={e => setCreateData({...createData, type: e.target.value})} className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm">
+                  <label className="block text-sm font-medium mb-1">Kind</label>
+                  <select value={createData.kind} onChange={e => setCreateData({...createData, kind: e.target.value})} className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm">
                     <option value="percentage">Percentage</option>
                     <option value="flat">Flat Amount</option>
                     <option value="bonus_credits">Bonus Credits</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Amount</label>
-                  <input type="number" value={createData.amount} onChange={e => setCreateData({...createData, amount: parseInt(e.target.value) || 0})} className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm" />
+                  <label className="block text-sm font-medium mb-1">
+                    Amount ({createData.kind === "percentage" ? "%" : createData.kind === "bonus_credits" ? "credits" : "$"})
+                  </label>
+                  <input type="number" value={createData.amount || ""} onChange={e => setCreateData({...createData, amount: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm" />
                 </div>
               </div>
+              {createData.kind === "flat" && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">Currency Code <span className="text-destructive">*</span></label>
+                  <input type="text" value={createData.currency_code} onChange={e => setCreateData({...createData, currency_code: e.target.value.toUpperCase()})} className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm" placeholder="e.g. USD" />
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">Max Uses (0 = unlimited)</label>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AdminLayout } from "@/components/layout/admin-layout";
+import { AdminSessionProvider } from "@/components/layout/admin-session-provider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -32,9 +33,11 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <AdminLayout>
-            {children}
-          </AdminLayout>
+          <AdminSessionProvider>
+            <AdminLayout>
+              {children}
+            </AdminLayout>
+          </AdminSessionProvider>
         </ThemeProvider>
       </body>
     </html>

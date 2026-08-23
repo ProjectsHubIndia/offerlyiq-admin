@@ -40,18 +40,40 @@ export default function LoginPage() {
       setUnverifiedEmail(null);
       setResendStatus(null);
       try {
-        const { login, getResume } = await import("@/lib/api");
-        const { setTokens } = await import("@/lib/auth");
+        const { login, getCurrentUser } = await import("@/lib/api");
+        const { setTokens, removeTokens } = await import("@/lib/auth");
         const tokens = await login(values.email.trim(), values.password);
         setTokens(tokens.access_token, tokens.refresh_token);
+        
+        // Fetch user to check role
+        const user = await getCurrentUser(tokens.access_token);
+        if (user.role === "user" || !user.role) {
+          removeTokens();
+          setStatus({ error: "This account is not an administrator." });
+          setSubmitting(false);
+          return;
+        }
+
         localStorage.setItem("auth_provider", "email");
 
         // Redirect to admin overview page
         router.push("/");
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : "Login failed";
-        if (msg.includes("Email not verified"))
-          setUnverifiedEmail(values.email.trim());
+      } catch (err: any) {
+        const status = err?.status || err?.response?.status;
+        let msg = err instanceof Error ? err.message : "Login failed";
+        
+        if (status === 401) {
+          if (msg.includes("Email not verified")) {
+            setUnverifiedEmail(values.email.trim());
+          } else if (msg.includes("Account is deactivated")) {
+            msg = "Contact an administrator";
+          } else {
+            msg = "Wrong email or password";
+          }
+        } else if (status === 403) {
+          msg = "This account is not an administrator.";
+        }
+        
         setStatus({ error: msg });
         setSubmitting(false);
       }

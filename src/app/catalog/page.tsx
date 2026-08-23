@@ -271,23 +271,55 @@ export default function CatalogPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  {Object.entries(settings).map(([key, value]) => (
+                  {Object.entries(settings).map(([key, value]) => {
+                    const originalType = typeof value;
+                    const editingValue = editingSettings[key] !== undefined ? editingSettings[key] : value;
+                    
+                    return (
                     <div key={key} className="flex flex-col space-y-2">
                       <label className="text-sm font-medium capitalize">
                         {key.replace(/_/g, " ")}
                       </label>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          defaultValue={String(value)}
-                          onChange={(e) =>
-                            setEditingSettings({
-                              ...editingSettings,
-                              [key]: e.target.value,
-                            })
-                          }
-                          className="flex-1 bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                        />
+                      <div className="flex gap-2 items-center">
+                        {originalType === "boolean" ? (
+                          <div className="flex-1">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(editingValue)}
+                              onChange={(e) =>
+                                setEditingSettings({
+                                  ...editingSettings,
+                                  [key]: e.target.checked as any,
+                                })
+                              }
+                              className="w-5 h-5 rounded border-border"
+                            />
+                          </div>
+                        ) : originalType === "number" ? (
+                          <input
+                            type="number"
+                            value={String(editingValue)}
+                            onChange={(e) =>
+                              setEditingSettings({
+                                ...editingSettings,
+                                [key]: parseFloat(e.target.value) as any,
+                              })
+                            }
+                            className="flex-1 bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                          />
+                        ) : (
+                          <input
+                            type="text"
+                            value={String(editingValue)}
+                            onChange={(e) =>
+                              setEditingSettings({
+                                ...editingSettings,
+                                [key]: e.target.value,
+                              })
+                            }
+                            className="flex-1 bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                          />
+                        )}
                         <Button
                           variant="outline"
                           size="icon"
@@ -302,7 +334,8 @@ export default function CatalogPage() {
                         </Button>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                   {Object.keys(settings).length === 0 && (
                     <p className="text-muted-foreground text-sm">
                       No global settings found.
