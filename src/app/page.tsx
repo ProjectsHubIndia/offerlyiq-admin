@@ -2,8 +2,23 @@
 
 import { useEffect, useState } from "react";
 import { admin } from "@/lib/api";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Users, CreditCard, DollarSign, Activity, TrendingUp, Package, Tag, Server } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import {
+  Users,
+  CreditCard,
+  DollarSign,
+  Activity,
+  TrendingUp,
+  Package,
+  Tag,
+  Server,
+} from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -16,7 +31,7 @@ import {
   Area,
   ComposedChart,
   Line,
-  LabelList
+  LabelList,
 } from "recharts";
 import { DataTable, type Column } from "@/components/ui/data-table";
 
@@ -35,7 +50,7 @@ export default function AdminDashboard() {
       try {
         const { getAccessToken } = await import("@/lib/auth");
         const token = getAccessToken() || undefined;
-        
+
         const results = await Promise.allSettled([
           admin.overview(token, daysFilter),
           admin.revenue(token, daysFilter),
@@ -43,46 +58,73 @@ export default function AdminDashboard() {
           admin.moduleUsage(token, daysFilter),
           admin.planSales(token, daysFilter),
         ]);
-        
-        const overviewRes = results[0].status === "fulfilled" ? results[0].value : null;
-        const revenueRes = results[1].status === "fulfilled" ? results[1].value : [];
-        const creditFlowRes = results[2].status === "fulfilled" ? results[2].value : null;
-        const moduleUsageRes = results[3].status === "fulfilled" ? results[3].value : [];
-        const planSalesRes = results[4].status === "fulfilled" ? results[4].value : [];
-        
+
+        const overviewRes =
+          results[0].status === "fulfilled" ? results[0].value : null;
+        const revenueRes =
+          results[1].status === "fulfilled" ? results[1].value : [];
+        const creditFlowRes =
+          results[2].status === "fulfilled" ? results[2].value : null;
+        const moduleUsageRes =
+          results[3].status === "fulfilled" ? results[3].value : [];
+        const planSalesRes =
+          results[4].status === "fulfilled" ? results[4].value : [];
+
         setOverviewData(overviewRes);
-        
+
         // Format revenue data for Recharts (convert cents to dollars, period to date)
         const baseCurrency = overviewRes?.revenue_currency || "USD";
         const formattedRevenue = (revenueRes || [])
           .filter((item: any) => item.currency_code === baseCurrency)
           .map((item: any) => {
-          let shortDate = item.period;
-          try {
-            const d = new Date(item.period);
-            if (!isNaN(d.getTime())) {
-              shortDate = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-            }
-          } catch (e) {}
-          
-          return {
-            date: shortDate,
-            amount: item.value ? item.value / 100 : 0,
-            display: item.display,
-            currency: item.currency_code,
-            fullDate: item.period
-          };
-        });
+            let shortDate = item.period;
+            try {
+              const d = new Date(item.period);
+              if (!isNaN(d.getTime())) {
+                shortDate = d.toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                });
+              }
+            } catch (e) {}
+
+            return {
+              date: shortDate,
+              amount: item.value ? item.value / 100 : 0,
+              display: item.display,
+              currency: item.currency_code,
+              fullDate: item.period,
+            };
+          });
         setRevenueData(formattedRevenue);
-        
-        let totalGranted = 0, totalSpent = 0, totalExpired = 0;
+
+        let totalGranted = 0,
+          totalSpent = 0,
+          totalExpired = 0;
         if (creditFlowRes) {
-          totalGranted = (creditFlowRes.granted || []).reduce((acc: number, item: any) => acc + (item.value || 0), 0);
-          totalSpent = (creditFlowRes.spent || []).reduce((acc: number, item: any) => acc + (item.value || 0), 0);
-          totalExpired = (creditFlowRes.expired || []).reduce((acc: number, item: any) => acc + (item.value || 0), 0);
+          totalGranted = (creditFlowRes.granted || []).reduce(
+            (acc: number, item: any) => acc + (item.value || 0),
+            0,
+          );
+          totalSpent = (creditFlowRes.spent || []).reduce(
+            (acc: number, item: any) => acc + (item.value || 0),
+            0,
+          );
+          totalExpired = (creditFlowRes.expired || []).reduce(
+            (acc: number, item: any) => acc + (item.value || 0),
+            0,
+          );
         }
-        setCreditFlowData(creditFlowRes ? { granted: totalGranted, spent: totalSpent, expired: totalExpired } : null);
-        
+        setCreditFlowData(
+          creditFlowRes
+            ? {
+                granted: totalGranted,
+                spent: totalSpent,
+                expired: totalExpired,
+              }
+            : null,
+        );
+
         setModuleUsageData(moduleUsageRes || []);
         setPlanSalesData(planSalesRes || []);
       } catch (err: any) {
@@ -131,12 +173,16 @@ export default function AdminDashboard() {
     {
       key: "plan_code",
       header: "Plan",
-      render: (p) => <span className="font-medium capitalize">{p.plan_code}</span>,
+      render: (p) => (
+        <span className="font-medium capitalize">{p.plan_code}</span>
+      ),
     },
     {
       key: "currency_code",
       header: "Currency",
-      render: (p) => <span className="font-mono text-xs">{p.currency_code}</span>,
+      render: (p) => (
+        <span className="font-mono text-xs">{p.currency_code}</span>
+      ),
     },
     {
       key: "purchases",
@@ -148,7 +194,9 @@ export default function AdminDashboard() {
       key: "revenue",
       header: "Revenue",
       align: "right",
-      render: (p) => <span className="font-mono text-green-500">{p.display}</span>,
+      render: (p) => (
+        <span className="font-mono text-green-500">{p.display}</span>
+      ),
     },
   ];
 
@@ -157,7 +205,9 @@ export default function AdminDashboard() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight mb-1">Dashboard</h1>
-          <p className="text-muted-foreground">Overview of platform metrics and revenue.</p>
+          <p className="text-muted-foreground">
+            Overview of platform metrics and revenue.
+          </p>
         </div>
         <select
           value={daysFilter}
@@ -178,7 +228,9 @@ export default function AdminDashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{overviewData?.total_users || 0}</div>
+            <div className="text-2xl font-bold">
+              {overviewData?.total_users || 0}
+            </div>
             <p className="text-xs text-muted-foreground mt-1">
               {overviewData?.active_users_30d || 0} active in last 30d
             </p>
@@ -193,7 +245,7 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-emerald-500">
-              {overviewData?.revenue_by_currency?.find(
+              {(overviewData?.revenue_by_currency || []).find(
                 (r: any) => r.currency_code === overviewData?.revenue_currency,
               )?.display ?? `${overviewData?.revenue_currency || "USD"} 0`}
             </div>
@@ -203,8 +255,11 @@ export default function AdminDashboard() {
             {overviewData?.revenue_is_partial && (
               <p className="text-xs text-muted-foreground mt-1">
                 plus{" "}
-                {overviewData.revenue_by_currency
-                  .filter((r: any) => r.currency_code !== overviewData.revenue_currency)
+                {(overviewData?.revenue_by_currency || [])
+                  .filter(
+                    (r: any) =>
+                      r.currency_code !== overviewData?.revenue_currency,
+                  )
                   .map((r: any) => r.display)
                   .join(" · ")}
               </p>
@@ -219,7 +274,9 @@ export default function AdminDashboard() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{overviewData?.paying_users || 0}</div>
+            <div className="text-2xl font-bold">
+              {overviewData?.paying_users || 0}
+            </div>
             <p className="text-xs text-muted-foreground mt-1">
               Users who have paid
             </p>
@@ -241,7 +298,8 @@ export default function AdminDashboard() {
             </p>
             {overviewData?.margin_excludes_currencies?.length > 0 && (
               <p className="text-xs text-amber-500/80 mt-1">
-                excludes {overviewData.margin_excludes_currencies.join(", ")} — no FX rate
+                excludes {overviewData.margin_excludes_currencies.join(", ")} —
+                no FX rate
               </p>
             )}
           </CardContent>
@@ -260,63 +318,111 @@ export default function AdminDashboard() {
             <div className="h-[300px] w-full">
               {revenueData && revenueData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={revenueData} margin={{ top: 30, right: 10, left: 0, bottom: 0 }}>
+                  <ComposedChart
+                    data={revenueData}
+                    margin={{ top: 30, right: 10, left: 0, bottom: 0 }}
+                  >
                     <defs>
-                      <linearGradient id="colorRevenueBar" x1="0" y1="1" x2="0" y2="0">
-                        <stop offset="0%" stopColor="#ea580c" stopOpacity={1}/>
-                        <stop offset="100%" stopColor="#ea580c" stopOpacity={0.1}/>
+                      <linearGradient
+                        id="colorRevenueBar"
+                        x1="0"
+                        y1="1"
+                        x2="0"
+                        y2="0"
+                      >
+                        <stop offset="0%" stopColor="#ea580c" stopOpacity={1} />
+                        <stop
+                          offset="100%"
+                          stopColor="#ea580c"
+                          stopOpacity={0.1}
+                        />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.4} />
-                    <XAxis 
-                      dataKey="date" 
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      vertical={false}
+                      stroke="hsl(var(--border))"
+                      opacity={0.4}
+                    />
+                    <XAxis
+                      dataKey="date"
                       tickLine={false}
                       axisLine={false}
-                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontWeight: 500 }}
+                      tick={{
+                        fill: "hsl(var(--muted-foreground))",
+                        fontSize: 12,
+                        fontWeight: 500,
+                      }}
                       dy={10}
                     />
-                    <YAxis 
+                    <YAxis
                       tickFormatter={(value) => `$${value}`}
                       tickLine={false}
                       axisLine={false}
-                      tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontWeight: 500 }}
+                      tick={{
+                        fill: "hsl(var(--muted-foreground))",
+                        fontSize: 12,
+                        fontWeight: 500,
+                      }}
                       dx={-10}
                     />
-                    <Tooltip 
-                      cursor={{ fill: 'rgba(234, 88, 12, 0.1)' }}
-                      contentStyle={{ 
-                        backgroundColor: "rgba(15, 23, 42, 0.9)", 
+                    <Tooltip
+                      cursor={{ fill: "rgba(234, 88, 12, 0.1)" }}
+                      contentStyle={{
+                        backgroundColor: "rgba(15, 23, 42, 0.9)",
                         backdropFilter: "blur(8px)",
-                        borderColor: "rgba(255,255,255,0.1)", 
+                        borderColor: "rgba(255,255,255,0.1)",
                         borderRadius: "12px",
-                        boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+                        boxShadow:
+                          "0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
                         color: "#fff",
-                        padding: "12px 16px"
+                        padding: "12px 16px",
                       }}
-                      itemStyle={{ color: "#ea580c", fontWeight: "bold", fontSize: "16px", padding: 0 }}
-                      labelStyle={{ color: "#94a3b8", marginBottom: "4px", fontSize: "13px" }}
-                      formatter={(value: any) => [`$${parseFloat(value).toFixed(2)}`, "Revenue"]}
+                      itemStyle={{
+                        color: "#ea580c",
+                        fontWeight: "bold",
+                        fontSize: "16px",
+                        padding: 0,
+                      }}
+                      labelStyle={{
+                        color: "#94a3b8",
+                        marginBottom: "4px",
+                        fontSize: "13px",
+                      }}
+                      formatter={(value: any) => [
+                        `$${parseFloat(value).toFixed(2)}`,
+                        "Revenue",
+                      ]}
                     />
-                    <Bar 
-                      dataKey="amount" 
-                      fill="url(#colorRevenueBar)" 
+                    <Bar
+                      dataKey="amount"
+                      fill="url(#colorRevenueBar)"
                       radius={[4, 4, 0, 0]}
                       maxBarSize={50}
                     >
-                      <LabelList 
-                        dataKey="amount" 
-                        position="top" 
+                      <LabelList
+                        dataKey="amount"
+                        position="top"
                         formatter={(val: any) => `$${Number(val).toFixed(2)}`}
-                        style={{ fill: 'hsl(var(--foreground))', fontSize: 12, fontWeight: 'bold' }}
+                        style={{
+                          fill: "hsl(var(--foreground))",
+                          fontSize: 12,
+                          fontWeight: "bold",
+                        }}
                       />
                     </Bar>
-                    <Line 
-                      type="monotone" 
-                      dataKey="amount" 
-                      stroke="#f97316" 
+                    <Line
+                      type="monotone"
+                      dataKey="amount"
+                      stroke="#f97316"
                       strokeWidth={3}
                       dot={{ r: 4, fill: "#10b981", strokeWidth: 0 }}
-                      activeDot={{ r: 6, fill: "#f97316", stroke: "#fff", strokeWidth: 2 }}
+                      activeDot={{
+                        r: 6,
+                        fill: "#f97316",
+                        stroke: "#fff",
+                        strokeWidth: 2,
+                      }}
                     />
                   </ComposedChart>
                 </ResponsiveContainer>
@@ -339,15 +445,21 @@ export default function AdminDashboard() {
               <div className="space-y-4">
                 <div className="flex justify-between border-b border-border pb-2">
                   <span className="text-sm text-muted-foreground">Granted</span>
-                  <span className="font-bold text-green-500">+{creditFlowData.granted || 0}</span>
+                  <span className="font-bold text-green-500">
+                    +{creditFlowData.granted || 0}
+                  </span>
                 </div>
                 <div className="flex justify-between border-b border-border pb-2">
                   <span className="text-sm text-muted-foreground">Spent</span>
-                  <span className="font-bold text-orange-500">-{creditFlowData.spent || 0}</span>
+                  <span className="font-bold text-orange-500">
+                    -{creditFlowData.spent || 0}
+                  </span>
                 </div>
                 <div className="flex justify-between pb-2">
                   <span className="text-sm text-muted-foreground">Expired</span>
-                  <span className="font-bold text-destructive">-{creditFlowData.expired || 0}</span>
+                  <span className="font-bold text-destructive">
+                    -{creditFlowData.expired || 0}
+                  </span>
                 </div>
               </div>
             ) : (
@@ -371,11 +483,13 @@ export default function AdminDashboard() {
           <CardContent>
             {moduleUsageData && moduleUsageData.length > 0 ? (
               <div className="pt-2">
-                <DataTable 
-                  columns={moduleUsageColumns} 
-                  data={moduleUsageData} 
-                  isLoading={loading} 
-                  keyExtractor={(m: any) => m.module_code || Math.random().toString()} 
+                <DataTable
+                  columns={moduleUsageColumns}
+                  data={moduleUsageData}
+                  isLoading={loading}
+                  keyExtractor={(m: any) =>
+                    m.module_code || Math.random().toString()
+                  }
                 />
               </div>
             ) : (
@@ -394,11 +508,15 @@ export default function AdminDashboard() {
           <CardContent>
             {planSalesData && planSalesData.length > 0 ? (
               <div className="pt-2">
-                <DataTable 
-                  columns={planSalesColumns} 
-                  data={planSalesData} 
-                  isLoading={loading} 
-                  keyExtractor={(p: any) => p.plan_code && p.currency_code ? `${p.plan_code}_${p.currency_code}` : p.plan_code || Math.random().toString()} 
+                <DataTable
+                  columns={planSalesColumns}
+                  data={planSalesData}
+                  isLoading={loading}
+                  keyExtractor={(p: any) =>
+                    p.plan_code && p.currency_code
+                      ? `${p.plan_code}_${p.currency_code}`
+                      : p.plan_code || Math.random().toString()
+                  }
                 />
               </div>
             ) : (

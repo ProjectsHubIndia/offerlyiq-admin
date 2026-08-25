@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Search, Loader2, MoreHorizontal, UserCheck, UserX, Shield, Coins, Eye, X, RefreshCw } from "lucide-react";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { ConfirmAction } from "@/components/ConfirmAction";
+import { toast } from "sonner";
 import { useAdminSession } from "@/components/layout/admin-session-provider";
 
 export default function UsersPage() {
@@ -129,7 +130,7 @@ export default function UsersPage() {
         const token = getAccessToken() || undefined;
         await admin.reinstateUser(user.id, reason, token);
         setConfirmState(prev => ({ ...prev, isOpen: false }));
-        alert("User reinstated successfully");
+        toast.success("User reinstated successfully");
         fetchUsers(page, searchQuery, roleFilter, statusFilter);
       }
     });
@@ -138,11 +139,11 @@ export default function UsersPage() {
   const handleGrantCredits = async () => {
     if (!selectedUser) return;
     if (grantAmount <= 0) {
-      alert("Amount must be greater than 0");
+      toast.error("Amount must be greater than 0");
       return;
     }
     if (!grantReason || grantReason.length < 3) {
-      alert("Reason is required (min 3 characters)");
+      toast.error("Reason is required (min 3 characters)");
       return;
     }
     
@@ -160,10 +161,10 @@ export default function UsersPage() {
       setExpiresInDays("");
       
       // Update selectedUser balance if details modal is open, but they are separate so it's fine.
-      alert(`Successfully adjusted credits for ${selectedUser.email}`);
+      toast.success(`Successfully adjusted credits for ${selectedUser.email}`);
     } catch (err: any) {
       console.error("Failed to adjust credits", err);
-      alert(err.message || "Error adjusting credits");
+      toast.error(err.message || "Error adjusting credits");
     } finally {
       setGrantLoading(false);
     }

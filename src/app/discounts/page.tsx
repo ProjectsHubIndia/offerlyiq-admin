@@ -10,8 +10,34 @@ import {
   CardDescription
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Plus, Trash2, Tag, Copy, Eye, X, Edit2 } from "lucide-react";
+import { Loader2, Plus, Trash2, Tag, Copy, Eye, X, Edit2, Check } from "lucide-react";
 import { DataTable, type Column } from "@/components/ui/data-table";
+import { toast } from "sonner";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
+
+const CopyCode = ({ code }: { code: string }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(code);
+    setCopied(true);
+    toast.success("Code copied properly!");
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="inline-flex items-center gap-2 bg-muted px-2 py-1 rounded-md font-mono text-sm font-bold text-foreground">
+      {code}
+      <button 
+        className="text-muted-foreground hover:text-foreground transition-colors"
+        onClick={handleCopy}
+        title="Copy to clipboard"
+      >
+        {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+      </button>
+    </div>
+  );
+};
 
 export default function DiscountsPage() {
   const [discounts, setDiscounts] = useState<any[]>([]);
@@ -21,6 +47,8 @@ export default function DiscountsPage() {
   const [redemptions, setRedemptions] = useState<any[]>([]);
   const [showRedemptionsModal, setShowRedemptionsModal] = useState(false);
   const [redemptionsLoading, setRedemptionsLoading] = useState(false);
+
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createData, setCreateData] = useState({ code: "", name: "", kind: "percentage", amount: 0, currency_code: "USD", max_redemptions: 0, expires_at: "" });
@@ -48,16 +76,23 @@ export default function DiscountsPage() {
     fetchDiscounts();
   }, []);
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm("Are you sure you want to delete this discount?")) return;
+  const handleDelete = (id: string) => {
+    setDeleteConfirmId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirmId) return;
     try {
       const { getAccessToken } = await import("@/lib/auth");
       const token = getAccessToken() || undefined;
-      await admin.deleteDiscount(id, token);
+      await admin.deleteDiscount(deleteConfirmId, token);
+      toast.success("Discount deleted successfully");
       fetchDiscounts();
     } catch (err) {
       console.error("Failed to delete discount", err);
-      alert("Error deleting discount");
+      toast.error("Error deleting discount");
+    } finally {
+      setDeleteConfirmId(null);
     }
   };
 
@@ -101,10 +136,11 @@ export default function DiscountsPage() {
       }, token);
       setShowCreateModal(false);
       setCreateData({ code: "", name: "", kind: "percentage", amount: 0, currency_code: "USD", max_redemptions: 0, expires_at: "" });
+      toast.success("Discount created successfully");
       fetchDiscounts();
     } catch (err) {
       console.error("Failed to create discount", err);
-      alert("Failed to create discount");
+      toast.error("Failed to create discount");
     } finally {
       setCreateLoading(false);
     }
@@ -131,10 +167,11 @@ export default function DiscountsPage() {
         expires_at: editData.expires_at ? new Date(editData.expires_at).toISOString() : null,
       }, token);
       setShowEditModal(false);
+      toast.success("Discount updated successfully");
       fetchDiscounts();
     } catch (err) {
       console.error("Failed to update discount", err);
-      alert("Failed to update discount");
+      toast.error("Failed to update discount");
     } finally {
       setEditLoading(false);
     }
@@ -144,17 +181,7 @@ export default function DiscountsPage() {
     {
       key: "code",
       header: "Code",
-      render: (discount) => (
-        <div className="inline-flex items-center gap-2 bg-muted px-2 py-1 rounded-md font-mono text-sm font-bold text-foreground">
-          {discount.code}
-          <button 
-            className="text-muted-foreground hover:text-foreground transition-colors"
-            onClick={() => navigator.clipboard.writeText(discount.code)}
-          >
-            <Copy className="w-3 h-3" />
-          </button>
-        </div>
-      ),
+      render: (discount) => <CopyCode code={discount.code} />,
     },
     {
       key: "kind",
@@ -164,20 +191,28 @@ export default function DiscountsPage() {
     {
       key: "value",
       header: "Value",
-      render: (discount) => (
-        <span className="font-medium">
-          {(discount.kind || discount.type) === "percentage" ? `${discount.amount}%` : (discount.kind || discount.type) === "bonus_credits" ? `${discount.amount} credits` : `$${(discount.amount / 100).toFixed(2)}`}
-        </span>
-      ),
+      render: (discount) => {
+        const val = discount.value ?? discount.amount;
+        const kind = discount.kind || discount.type;
+        return (
+          <span className="font-medium">
+            {kind === "percentage" ? `${val}%` : kind === "bonus_credits" ? `${val} credits` : `$${(val / 100).toFixed(2)}`}
+          </span>
+        );
+      },
     },
     {
       key: "usage",
       header: "Usage",
-      render: (discount) => (
-        <span className="text-muted-foreground">
-          {discount.times_used || 0} / {discount.max_uses || "∞"}
-        </span>
-      ),
+      render: (discount) => {
+        const used = discount.redemptions_used ?? discount.times_used ?? 0;
+        const max = discount.max_redemptions ?? discount.max_uses;
+        return (
+          <span className="text-muted-foreground">
+            {used} / {max || "∞"}
+          </span>
+        );
+      },
     },
     {
       key: "expires",
@@ -418,6 +453,16 @@ export default function DiscountsPage() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={!!deleteConfirmId}
+        onClose={() => setDeleteConfirmId(null)}
+        onConfirm={confirmDelete}
+        title="Delete Discount"
+        description="Are you sure you want to delete this discount? This action cannot be undone."
+        confirmText="Delete"
+        isDestructive={true}
+      />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AdminLayout } from "@/components/layout/admin-layout";
 import { AdminSessionProvider } from "@/components/layout/admin-session-provider";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -34,10 +35,18 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <AdminSessionProvider>
-            <AdminLayout>
-              {children}
-            </AdminLayout>
+            <AdminLayout>{children}</AdminLayout>
           </AdminSessionProvider>
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              style: {
+                backgroundColor: "#ffedd5", // light orange bg
+                color: "#c2410c", // darker orange text
+                borderColor: "#fed7aa", // border slightly darker than bg
+              },
+            }}
+          />
         </ThemeProvider>
       </body>
     </html>

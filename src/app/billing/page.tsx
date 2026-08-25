@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTable, type Column } from "@/components/ui/data-table";
+import { toast } from "sonner";
 
 export default function BillingOpsPage() {
   const [activeTab, setActiveTab] = useState<
@@ -97,11 +98,11 @@ export default function BillingOpsPage() {
       const { getAccessToken } = await import("@/lib/auth");
       const token = getAccessToken() || undefined;
       await admin.replayWebhook(id, token);
-      alert("Webhook replay triggered successfully");
+      toast.success("Webhook replay triggered successfully");
       fetchData();
     } catch (err) {
       console.error("Failed to replay webhook", err);
-      alert("Failed to replay webhook");
+      toast.error("Failed to replay webhook");
     } finally {
       setActionLoading(null);
     }
@@ -130,13 +131,13 @@ export default function BillingOpsPage() {
       const { getAccessToken } = await import("@/lib/auth");
       const token = getAccessToken() || undefined;
       await admin.refundTransaction(selectedTx.id, refundReason, token);
-      alert("Refund initiated successfully");
+      toast.success("Refund initiated successfully");
       setShowRefundModal(false);
       setRefundReason("");
       fetchData();
     } catch (err) {
       console.error("Failed to refund transaction", err);
-      alert("Failed to refund transaction");
+      toast.error("Failed to refund transaction");
     } finally {
       setActionLoading(null);
     }

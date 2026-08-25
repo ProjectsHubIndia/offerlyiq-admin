@@ -1030,17 +1030,26 @@ export const admin = {
         authConfig(token),
       )
       .then((r) => r.data),
-  creditFlow: (token?: string) =>
+  creditFlow: (token?: string, days?: number) =>
     axiosMain
-      .get("/admin/analytics/credits", authConfig(token))
+      .get("/admin/analytics/credits", {
+        ...authConfig(token),
+        params: { days },
+      })
       .then((r) => r.data),
-  moduleUsage: (token?: string) =>
+  moduleUsage: (token?: string, days?: number) =>
     axiosMain
-      .get("/admin/analytics/modules", authConfig(token))
+      .get("/admin/analytics/modules", {
+        ...authConfig(token),
+        params: { days },
+      })
       .then((r) => r.data),
-  planSales: (token?: string) =>
+  planSales: (token?: string, days?: number) =>
     axiosMain
-      .get("/admin/analytics/plans", authConfig(token))
+      .get("/admin/analytics/plans", {
+        ...authConfig(token),
+        params: { days },
+      })
       .then((r) => r.data),
 
   // Discounts Extensions

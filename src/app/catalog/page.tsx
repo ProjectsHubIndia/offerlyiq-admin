@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Loader2, Settings, List, Save, Server } from "lucide-react";
 import { DataTable, type Column } from "@/components/ui/data-table";
+import { toast } from "sonner";
 
 export default function CatalogPage() {
   const [activeTab, setActiveTab] = useState<
@@ -83,11 +84,11 @@ export default function CatalogPage() {
         token,
       );
       setShowModuleModal(false);
-      alert("Module updated successfully");
+      toast.success("Module updated successfully");
       fetchData();
     } catch (err) {
       console.error("Failed to update module", err);
-      alert("Error updating module");
+      toast.error("Error updating module");
     } finally {
       setModuleLoading(false);
     }
@@ -101,11 +102,11 @@ export default function CatalogPage() {
       const { getAccessToken } = await import("@/lib/auth");
       const token = getAccessToken() || undefined;
       await admin.patchSetting(key, { value }, token);
-      alert("Setting saved successfully");
+      toast.success("Setting saved successfully");
       fetchData();
     } catch (err) {
       console.error("Failed to save setting", err);
-      alert("Error saving setting");
+      toast.error("Error saving setting");
     } finally {
       setSettingLoading(null);
     }
@@ -273,67 +274,70 @@ export default function CatalogPage() {
                 <CardContent className="space-y-6">
                   {Object.entries(settings).map(([key, value]) => {
                     const originalType = typeof value;
-                    const editingValue = editingSettings[key] !== undefined ? editingSettings[key] : value;
-                    
+                    const editingValue =
+                      editingSettings[key] !== undefined
+                        ? editingSettings[key]
+                        : value;
+
                     return (
-                    <div key={key} className="flex flex-col space-y-2">
-                      <label className="text-sm font-medium capitalize">
-                        {key.replace(/_/g, " ")}
-                      </label>
-                      <div className="flex gap-2 items-center">
-                        {originalType === "boolean" ? (
-                          <div className="flex-1">
+                      <div key={key} className="flex flex-col space-y-2">
+                        <label className="text-sm font-medium capitalize">
+                          {key.replace(/_/g, " ")}
+                        </label>
+                        <div className="flex gap-2 items-center">
+                          {originalType === "boolean" ? (
+                            <div className="flex-1">
+                              <input
+                                type="checkbox"
+                                checked={Boolean(editingValue)}
+                                onChange={(e) =>
+                                  setEditingSettings({
+                                    ...editingSettings,
+                                    [key]: e.target.checked as any,
+                                  })
+                                }
+                                className="w-5 h-5 rounded border-border"
+                              />
+                            </div>
+                          ) : originalType === "number" ? (
                             <input
-                              type="checkbox"
-                              checked={Boolean(editingValue)}
+                              type="number"
+                              value={String(editingValue)}
                               onChange={(e) =>
                                 setEditingSettings({
                                   ...editingSettings,
-                                  [key]: e.target.checked as any,
+                                  [key]: parseFloat(e.target.value) as any,
                                 })
                               }
-                              className="w-5 h-5 rounded border-border"
+                              className="flex-1 bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                             />
-                          </div>
-                        ) : originalType === "number" ? (
-                          <input
-                            type="number"
-                            value={String(editingValue)}
-                            onChange={(e) =>
-                              setEditingSettings({
-                                ...editingSettings,
-                                [key]: parseFloat(e.target.value) as any,
-                              })
-                            }
-                            className="flex-1 bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                          />
-                        ) : (
-                          <input
-                            type="text"
-                            value={String(editingValue)}
-                            onChange={(e) =>
-                              setEditingSettings({
-                                ...editingSettings,
-                                [key]: e.target.value,
-                              })
-                            }
-                            className="flex-1 bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                          />
-                        )}
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => handleSaveSetting(key)}
-                          disabled={settingLoading === key}
-                        >
-                          {settingLoading === key ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
                           ) : (
-                            <Save className="w-4 h-4" />
+                            <input
+                              type="text"
+                              value={String(editingValue)}
+                              onChange={(e) =>
+                                setEditingSettings({
+                                  ...editingSettings,
+                                  [key]: e.target.value,
+                                })
+                              }
+                              className="flex-1 bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                            />
                           )}
-                        </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleSaveSetting(key)}
+                            disabled={settingLoading === key}
+                          >
+                            {settingLoading === key ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Save className="w-4 h-4" />
+                            )}
+                          </Button>
+                        </div>
                       </div>
-                    </div>
                     );
                   })}
                   {Object.keys(settings).length === 0 && (

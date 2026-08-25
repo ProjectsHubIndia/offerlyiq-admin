@@ -41,14 +41,14 @@ export default function LoginPage() {
       setResendStatus(null);
       try {
         const { login, getCurrentUser } = await import("@/lib/api");
-        const { setTokens, removeTokens } = await import("@/lib/auth");
+        const { setTokens, clearTokens } = await import("@/lib/auth");
         const tokens = await login(values.email.trim(), values.password);
         setTokens(tokens.access_token, tokens.refresh_token);
         
         // Fetch user to check role
         const user = await getCurrentUser(tokens.access_token);
         if (user.role === "user" || !user.role) {
-          removeTokens();
+          clearTokens();
           setStatus({ error: "This account is not an administrator." });
           setSubmitting(false);
           return;

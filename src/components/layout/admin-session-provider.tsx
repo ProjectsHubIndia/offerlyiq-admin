@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { isAuthenticated, clearTokens, Role, isAdmin } from "@/lib/auth";
+import { toast } from "sonner";
 
 export interface User {
   id: string;
@@ -47,14 +48,14 @@ export function AdminSessionProvider({ children }: { children: React.ReactNode }
         
         const user = await getCurrentUser(token);
         
-        if (!isAdmin(user.role)) {
+        if (!isAdmin(user.role as Role)) {
           clearTokens();
-          alert("This account is not an administrator.");
+          toast.error("This account is not an administrator.");
           router.replace("/login");
           return;
         }
 
-        setUser(user);
+        setUser(user as User);
       } catch (err: any) {
         console.error("Failed to fetch user session", err);
         if (err?.status === 401 || err?.response?.status === 401) {
