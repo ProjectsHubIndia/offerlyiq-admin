@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
-import { useTheme } from "next-themes";
+
 
 export function InteractiveGridBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { resolvedTheme } = useTheme();
+
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -50,7 +50,7 @@ export function InteractiveGridBackground() {
       // Clear canvas
       ctx.clearRect(0, 0, width, height);
 
-      const isDark = resolvedTheme === "dark";
+      const isDark = false;
 
       // Draw cursor glow/shade
       const glowRadius = 300;
@@ -132,7 +132,7 @@ export function InteractiveGridBackground() {
       window.removeEventListener("mousemove", handleMouseMove);
       cancelAnimationFrame(animationFrameId);
     };
-  }, [resolvedTheme]);
+  }, []);
 
   return (
     <canvas

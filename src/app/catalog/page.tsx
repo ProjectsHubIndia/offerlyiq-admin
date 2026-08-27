@@ -264,87 +264,102 @@ export default function CatalogPage() {
             )}
 
             {activeTab === "settings" && (
-              <Card className="max-w-2xl">
-                <CardHeader>
-                  <CardTitle>Platform Configuration</CardTitle>
+              <Card className="w-full shadow-sm border-border">
+                <CardHeader className="border-b border-border/50 pb-4 bg-muted/10">
+                  <CardTitle className="text-lg">
+                    Platform Configuration
+                  </CardTitle>
                   <CardDescription>
                     System-wide settings and variables
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  {Object.entries(settings).map(([key, value]) => {
-                    const originalType = typeof value;
-                    const editingValue =
-                      editingSettings[key] !== undefined
-                        ? editingSettings[key]
-                        : value;
+                <CardContent className="p-0">
+                  <div className="divide-y divide-border">
+                    {Object.entries(settings).map(([key, value]) => {
+                      const originalType = typeof value;
+                      const editingValue =
+                        editingSettings[key] !== undefined
+                          ? editingSettings[key]
+                          : value;
 
-                    return (
-                      <div key={key} className="flex flex-col space-y-2">
-                        <label className="text-sm font-medium capitalize">
-                          {key.replace(/_/g, " ")}
-                        </label>
-                        <div className="flex gap-2 items-center">
-                          {originalType === "boolean" ? (
-                            <div className="flex-1">
+                      return (
+                        <div
+                          key={key}
+                          className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-6 hover:bg-muted/5 transition-colors"
+                        >
+                          <div className="mb-4 sm:mb-0 sm:mr-6 flex-1">
+                            <label className="text-base font-medium text-foreground capitalize">
+                              {key.replace(/_/g, " ")}
+                            </label>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Set the global {key.replace(/_/g, " ")}{" "}
+                              configuration.
+                            </p>
+                          </div>
+                          <div className="flex gap-3 items-center w-full sm:w-[350px]">
+                            {originalType === "boolean" ? (
+                              <div className="flex-1">
+                                <input
+                                  type="checkbox"
+                                  checked={Boolean(editingValue)}
+                                  onChange={(e) =>
+                                    setEditingSettings({
+                                      ...editingSettings,
+                                      [key]: e.target.checked as any,
+                                    })
+                                  }
+                                  className="w-5 h-5 rounded border-border"
+                                />
+                              </div>
+                            ) : originalType === "number" ? (
                               <input
-                                type="checkbox"
-                                checked={Boolean(editingValue)}
+                                type="number"
+                                value={String(editingValue)}
                                 onChange={(e) =>
                                   setEditingSettings({
                                     ...editingSettings,
-                                    [key]: e.target.checked as any,
+                                    [key]: parseFloat(e.target.value) as any,
                                   })
                                 }
-                                className="w-5 h-5 rounded border-border"
+                                className="flex-1 bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                               />
-                            </div>
-                          ) : originalType === "number" ? (
-                            <input
-                              type="number"
-                              value={String(editingValue)}
-                              onChange={(e) =>
-                                setEditingSettings({
-                                  ...editingSettings,
-                                  [key]: parseFloat(e.target.value) as any,
-                                })
-                              }
-                              className="flex-1 bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                            />
-                          ) : (
-                            <input
-                              type="text"
-                              value={String(editingValue)}
-                              onChange={(e) =>
-                                setEditingSettings({
-                                  ...editingSettings,
-                                  [key]: e.target.value,
-                                })
-                              }
-                              className="flex-1 bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                            />
-                          )}
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            onClick={() => handleSaveSetting(key)}
-                            disabled={settingLoading === key}
-                          >
-                            {settingLoading === key ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
                             ) : (
-                              <Save className="w-4 h-4" />
+                              <input
+                                type="text"
+                                value={String(editingValue)}
+                                onChange={(e) =>
+                                  setEditingSettings({
+                                    ...editingSettings,
+                                    [key]: e.target.value,
+                                  })
+                                }
+                                className="flex-1 bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                              />
                             )}
-                          </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={() => handleSaveSetting(key)}
+                              disabled={settingLoading === key}
+                            >
+                              {settingLoading === key ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Save className="w-4 h-4" />
+                              )}
+                            </Button>
+                          </div>
                         </div>
+                      );
+                    })}
+                    {Object.keys(settings).length === 0 && (
+                      <div className="p-6">
+                        <p className="text-muted-foreground text-sm">
+                          No global settings found.
+                        </p>
                       </div>
-                    );
-                  })}
-                  {Object.keys(settings).length === 0 && (
-                    <p className="text-muted-foreground text-sm">
-                      No global settings found.
-                    </p>
-                  )}
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             )}

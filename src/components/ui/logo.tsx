@@ -1,13 +1,13 @@
 "use client";
 
 import Image from "next/image";
-import { useTheme } from "next-themes";
+
 import { useState, useEffect } from "react";
 
 type PersonaType = "candidate" | "hr" | "admin" | "coding";
 
 export function LogoSplit({
-  priority = false,
+  priority = true,
   persona,
   className = "h-10 w-auto object-contain",
 }: {
@@ -15,21 +15,12 @@ export function LogoSplit({
   persona?: PersonaType;
   className?: string;
 }) {
-  const { resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+  const isDark = persona === "coding";
+  const logoSrc = !isDark
+    ? "/assets/Logo/bg Light2.png"
+    : "/assets/images/Headerfinal/Header BG transparent.png";
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const isDark = persona === "coding" || resolvedTheme === "dark";
-  const logoSrc =
-    mounted && !isDark
-      ? "/assets/Logo/bg Light2.png"
-      : "/assets/images/Headerfinal/Header BG transparent.png";
-
-  const resolvedClass =
-    mounted && !isDark ? "h-[85px] w-auto object-contain" : className;
+  const resolvedClass = !isDark ? "h-[85px] w-auto object-contain" : className;
 
   return (
     <div className="flex items-center select-none shrink-0">

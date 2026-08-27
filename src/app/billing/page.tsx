@@ -22,6 +22,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { toast } from "sonner";
+import { DatePickerWithRange } from "@/components/ui/date-range-picker";
+import { DateRange } from "react-day-picker";
+import { format } from "date-fns";
 
 export default function BillingOpsPage() {
   const [activeTab, setActiveTab] = useState<
@@ -31,7 +34,7 @@ export default function BillingOpsPage() {
   const [webhooks, setWebhooks] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [chargebacks, setChargebacks] = useState<any[]>([]);
-  
+
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const pageSize = 10;
@@ -44,6 +47,22 @@ export default function BillingOpsPage() {
   const [webhookFilterEvent, setWebhookFilterEvent] = useState("all");
   const [webhookFilterSince, setWebhookFilterSince] = useState("");
   const [webhookFilterUntil, setWebhookFilterUntil] = useState("");
+  const [webhookDateRange, setWebhookDateRange] = useState<
+    DateRange | undefined
+  >(undefined);
+
+  useEffect(() => {
+    if (webhookDateRange?.from) {
+      setWebhookFilterSince(format(webhookDateRange.from, "yyyy-MM-dd"));
+    } else {
+      setWebhookFilterSince("");
+    }
+    if (webhookDateRange?.to) {
+      setWebhookFilterUntil(format(webhookDateRange.to, "yyyy-MM-dd"));
+    } else {
+      setWebhookFilterUntil("");
+    }
+  }, [webhookDateRange]);
 
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [selectedTx, setSelectedTx] = useState<any>(null);
@@ -63,17 +82,29 @@ export default function BillingOpsPage() {
         const response = await admin.getWebhooks(token, currentPage, pageSize, {
           status: webhookFilterStatus,
           eventType: webhookFilterEvent,
-          since: webhookFilterSince ? new Date(webhookFilterSince).toISOString() : undefined,
-          until: webhookFilterUntil ? new Date(webhookFilterUntil).toISOString() : undefined,
+          since: webhookFilterSince
+            ? new Date(webhookFilterSince).toISOString()
+            : undefined,
+          until: webhookFilterUntil
+            ? new Date(webhookFilterUntil).toISOString()
+            : undefined,
         });
         setWebhooks(response?.items || []);
         setTotalPages(response?.pages || 1);
       } else if (activeTab === "transactions") {
-        const response = await admin.getTransactions(token, currentPage, pageSize);
+        const response = await admin.getTransactions(
+          token,
+          currentPage,
+          pageSize,
+        );
         setTransactions(response?.items || []);
         setTotalPages(response?.pages || 1);
       } else if (activeTab === "chargebacks") {
-        const response = await admin.getChargebacks(token, currentPage, pageSize);
+        const response = await admin.getChargebacks(
+          token,
+          currentPage,
+          pageSize,
+        );
         setChargebacks(response?.items || []);
         setTotalPages(response?.pages || 1);
       }
@@ -90,7 +121,14 @@ export default function BillingOpsPage() {
 
   useEffect(() => {
     fetchData();
-  }, [activeTab, currentPage, webhookFilterStatus, webhookFilterEvent, webhookFilterSince, webhookFilterUntil]);
+  }, [
+    activeTab,
+    currentPage,
+    webhookFilterStatus,
+    webhookFilterEvent,
+    webhookFilterSince,
+    webhookFilterUntil,
+  ]);
 
   const handleReplay = async (id: string) => {
     setActionLoading(id);
@@ -252,9 +290,9 @@ export default function BillingOpsPage() {
                   ? "bg-yellow-500/10 text-yellow-500"
                   : tx.status === "refund_pending"
                     ? "bg-orange-500/10 text-orange-500"
-                  : tx.status === "chargeback"
-                    ? "bg-destructive/10 text-destructive"
-                    : "bg-muted text-muted-foreground"
+                    : tx.status === "chargeback"
+                      ? "bg-destructive/10 text-destructive"
+                      : "bg-muted text-muted-foreground"
             }`}
           >
             {tx.status}
@@ -377,62 +415,50 @@ export default function BillingOpsPage() {
       </div>
 
       <div className="space-y-4">
-        <div>
-          <h2 className="text-xl font-semibold">
-            {activeTab === "webhooks" && "Recent Webhook Events"}
-            {activeTab === "transactions" && "Recent Transactions"}
-            {activeTab === "chargebacks" && "Chargebacks & Disputes"}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {activeTab === "webhooks" &&
-              "Logs from Paddle or Stripe integration"}
-            {activeTab === "transactions" &&
-              "Real-money payments on the platform"}
-            {activeTab === "chargebacks" &&
-              "Disputed or charged back transactions"}
-          </p>
-        </div>
-
-        {activeTab === "webhooks" && (
-          <div className="flex gap-4 items-center flex-wrap">
-            <select
-              value={webhookFilterStatus}
-              onChange={(e) => setWebhookFilterStatus(e.target.value)}
-              className="px-3 py-1.5 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
-            >
-              <option value="all">All Statuses</option>
-              <option value="pending">Pending</option>
-              <option value="processed">Processed</option>
-              <option value="failed">Failed</option>
-              <option value="ignored">Ignored</option>
-            </select>
-            <input
-              type="text"
-              placeholder="Filter by event type..."
-              value={webhookFilterEvent === "all" ? "" : webhookFilterEvent}
-              onChange={(e) => setWebhookFilterEvent(e.target.value || "all")}
-              className="px-3 py-1.5 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary w-64"
-            />
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">From:</span>
-              <input
-                type="date"
-                value={webhookFilterSince}
-                onChange={(e) => setWebhookFilterSince(e.target.value)}
-                className="px-3 py-1.5 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">To:</span>
-              <input
-                type="date"
-                value={webhookFilterUntil}
-                onChange={(e) => setWebhookFilterUntil(e.target.value)}
-                className="px-3 py-1.5 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
+        <div className="flex flex-col xl:flex-row justify-between xl:items-center gap-4">
+          <div>
+            <h2 className="text-xl font-semibold">
+              {activeTab === "webhooks" && "Recent Webhook Events"}
+              {activeTab === "transactions" && "Recent Transactions"}
+              {activeTab === "chargebacks" && "Chargebacks & Disputes"}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {activeTab === "webhooks" &&
+                "Logs from Paddle or Stripe integration"}
+              {activeTab === "transactions" &&
+                "Real-money payments on the platform"}
+              {activeTab === "chargebacks" &&
+                "Disputed or charged back transactions"}
+            </p>
           </div>
-        )}
+
+          {activeTab === "webhooks" && (
+            <div className="flex gap-4 items-center flex-wrap xl:justify-end">
+              <select
+                value={webhookFilterStatus}
+                onChange={(e) => setWebhookFilterStatus(e.target.value)}
+                className="px-3 py-1.5 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="all">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="processed">Processed</option>
+                <option value="failed">Failed</option>
+                <option value="ignored">Ignored</option>
+              </select>
+              <input
+                type="text"
+                placeholder="Filter by event type..."
+                value={webhookFilterEvent === "all" ? "" : webhookFilterEvent}
+                onChange={(e) => setWebhookFilterEvent(e.target.value || "all")}
+                className="px-3 py-1.5 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary w-64"
+              />
+              <DatePickerWithRange
+                date={webhookDateRange}
+                setDate={setWebhookDateRange}
+              />
+            </div>
+          )}
+        </div>
 
         {activeTab === "webhooks" && (
           <DataTable

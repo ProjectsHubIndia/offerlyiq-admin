@@ -138,9 +138,9 @@ export default function DiscountsPage() {
       setCreateData({ code: "", name: "", kind: "percentage", amount: 0, currency_code: "USD", max_redemptions: 0, expires_at: "" });
       toast.success("Discount created successfully");
       fetchDiscounts();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to create discount", err);
-      toast.error("Failed to create discount");
+      toast.error(err.response?.data?.detail || "Failed to create discount");
     } finally {
       setCreateLoading(false);
     }
@@ -169,9 +169,9 @@ export default function DiscountsPage() {
       setShowEditModal(false);
       toast.success("Discount updated successfully");
       fetchDiscounts();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to update discount", err);
-      toast.error("Failed to update discount");
+      toast.error(err.response?.data?.detail || "Failed to update discount");
     } finally {
       setEditLoading(false);
     }
@@ -182,6 +182,18 @@ export default function DiscountsPage() {
       key: "code",
       header: "Code",
       render: (discount) => <CopyCode code={discount.code} />,
+    },
+    {
+      key: "status",
+      header: "Status",
+      render: (discount) => {
+        const s = discount.status || "draft";
+        return (
+          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${s === 'active' ? 'bg-emerald-100 text-emerald-700' : s === 'draft' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+            {s}
+          </span>
+        );
+      },
     },
     {
       key: "kind",
@@ -196,7 +208,7 @@ export default function DiscountsPage() {
         const kind = discount.kind || discount.type;
         return (
           <span className="font-medium">
-            {kind === "percentage" ? `${val}%` : kind === "bonus_credits" ? `${val} credits` : `$${(val / 100).toFixed(2)}`}
+            {kind === "percentage" ? `${val / 100}%` : kind === "bonus_credits" ? `${val} credits` : `${discount.currency_code || '$'} ${(val / 100).toFixed(2)}`}
           </span>
         );
       },
@@ -378,7 +390,7 @@ export default function DiscountsPage() {
                   <label className="block text-sm font-medium mb-1">
                     Amount ({createData.kind === "percentage" ? "%" : createData.kind === "bonus_credits" ? "credits" : "$"})
                   </label>
-                  <input type="number" value={createData.amount || ""} onChange={e => setCreateData({...createData, amount: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm" />
+                  <input type="number" value={createData.amount === "" ? "" : createData.amount} onChange={e => setCreateData({...createData, amount: e.target.value === "" ? ("" as any) : parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm" />
                 </div>
               </div>
               {createData.kind === "flat" && (
@@ -389,8 +401,8 @@ export default function DiscountsPage() {
               )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Max Uses (0 = unlimited)</label>
-                  <input type="number" value={createData.max_redemptions} onChange={e => setCreateData({...createData, max_redemptions: parseInt(e.target.value) || 0})} className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm" />
+                  <label className="block text-sm font-medium mb-1">Max Uses (0 = unlimited, flat/percentage MUST have limit)</label>
+                  <input type="number" value={createData.max_redemptions === "" ? "" : createData.max_redemptions} onChange={e => setCreateData({...createData, max_redemptions: e.target.value === "" ? ("" as any) : parseInt(e.target.value) || 0})} className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Expires At (Optional)</label>
@@ -433,8 +445,8 @@ export default function DiscountsPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Max Uses (0 = unlimited)</label>
-                  <input type="number" value={editData.max_redemptions} onChange={e => setEditData({...editData, max_redemptions: parseInt(e.target.value) || 0})} className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm" />
+                  <label className="block text-sm font-medium mb-1">Max Uses (0 = unlimited, flat/percentage MUST have limit)</label>
+                  <input type="number" value={editData.max_redemptions === "" ? "" : editData.max_redemptions} onChange={e => setEditData({...editData, max_redemptions: e.target.value === "" ? ("" as any) : parseInt(e.target.value) || 0})} className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Expires At (Optional)</label>

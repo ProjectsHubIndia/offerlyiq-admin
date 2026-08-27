@@ -52,17 +52,17 @@ export function DataTable<T>({
   } else if (clientSidePagination) {
     // Uncontrolled / Client-side pagination
     totalP = Math.ceil((data?.length || 0) / pageSize) || 1;
-    
+
     // Ensure current page is within bounds
     const safePage = Math.max(1, Math.min(internalPage, totalP));
     if (safePage !== internalPage && data?.length > 0) {
       setInternalPage(safePage);
     }
-    
+
     const startIndex = (safePage - 1) * pageSize;
     const endIndex = startIndex + pageSize;
     displayData = (data || []).slice(startIndex, endIndex);
-    
+
     currentP = safePage;
     handlePageChange = (p) => setInternalPage(p);
     showPagination = totalP > 1;
@@ -82,8 +82,8 @@ export function DataTable<T>({
                       col.align === "center"
                         ? "text-center"
                         : col.align === "right"
-                        ? "text-right"
-                        : "text-left"
+                          ? "text-right"
+                          : "text-left"
                     }`}
                   >
                     {col.header}
@@ -129,8 +129,8 @@ export function DataTable<T>({
                           col.align === "center"
                             ? "text-center"
                             : col.align === "right"
-                            ? "text-right"
-                            : "text-left"
+                              ? "text-right"
+                              : "text-left"
                         }`}
                       >
                         {col.render(item)}
