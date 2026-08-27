@@ -51,11 +51,11 @@ export default function DiscountsPage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createData, setCreateData] = useState({ code: "", name: "", kind: "percentage", amount: 0, currency_code: "USD", max_redemptions: 0, expires_at: "" });
+  const [createData, setCreateData] = useState<{ code: string; name: string; kind: string; amount: number | string; currency_code: string; max_redemptions: number | string; expires_at: string }>({ code: "", name: "", kind: "percentage", amount: 0, currency_code: "USD", max_redemptions: 0, expires_at: "" });
   const [createLoading, setCreateLoading] = useState(false);
 
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editData, setEditData] = useState({ status: "active", max_redemptions: 0, expires_at: "" });
+  const [editData, setEditData] = useState<{ status: string; max_redemptions: number | string; expires_at: string }>({ status: "active", max_redemptions: 0, expires_at: "" });
   const [editLoading, setEditLoading] = useState(false);
 
   const fetchDiscounts = async () => {
@@ -118,11 +118,12 @@ export default function DiscountsPage() {
     try {
       const { getAccessToken } = await import("@/lib/auth");
       const token = getAccessToken() || undefined;
-      let finalValue = createData.amount;
+      const numericAmount = typeof createData.amount === "string" ? parseFloat(createData.amount) || 0 : createData.amount;
+      let finalValue: number | string = numericAmount;
       if (createData.kind === "percentage") {
-        finalValue = createData.amount * 100; // basis points
+        finalValue = numericAmount * 100; // basis points
       } else if (createData.kind === "flat") {
-        finalValue = Math.round(createData.amount * 100); // minor units
+        finalValue = Math.round(numericAmount * 100); // minor units
       }
 
       await admin.createDiscount({
