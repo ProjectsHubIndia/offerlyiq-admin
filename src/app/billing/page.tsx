@@ -555,7 +555,7 @@ export default function BillingOpsPage() {
             </button>
             <h2 className="text-xl font-bold mb-1">Webhook Details</h2>
             {selectedWebhook && (
-              <p className="text-sm text-muted-foreground mb-4 font-mono">
+              <p className="text-sm text-muted-foreground mb-4 font-mono break-all">
                 {selectedWebhook.event_type} | {selectedWebhook.id}
               </p>
             )}
@@ -580,7 +580,7 @@ export default function BillingOpsPage() {
                       <span className="font-medium text-muted-foreground">
                         Provider Event ID:
                       </span>{" "}
-                      <span className="font-mono">
+                      <span className="font-mono break-all">
                         {selectedWebhook.provider_event_id}
                       </span>
                     </div>
@@ -597,7 +597,7 @@ export default function BillingOpsPage() {
                         <span className="font-medium text-muted-foreground">
                           Error:
                         </span>{" "}
-                        <span className="text-destructive font-mono text-xs">
+                        <span className="text-destructive font-mono text-xs break-all">
                           {selectedWebhook.error_message}
                         </span>
                       </div>
@@ -615,7 +615,7 @@ export default function BillingOpsPage() {
                             <span className="text-muted-foreground block text-xs">
                               User ID
                             </span>
-                            <span className="font-mono">
+                            <span className="font-mono break-all">
                               {selectedWebhook.payload.data.custom_data.user_id}
                             </span>
                           </div>
@@ -625,7 +625,7 @@ export default function BillingOpsPage() {
                             <span className="text-muted-foreground block text-xs">
                               Customer ID
                             </span>
-                            <span className="font-mono">
+                            <span className="font-mono break-all">
                               {selectedWebhook.payload.data.customer_id}
                             </span>
                           </div>
