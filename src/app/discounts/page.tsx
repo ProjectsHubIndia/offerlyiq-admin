@@ -358,7 +358,7 @@ export default function DiscountsPage() {
       {/* Create Discount Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-card w-full max-w-md p-6 rounded-lg shadow-lg border border-border relative">
+          <div className="bg-card w-full max-w-lg p-6 rounded-lg shadow-lg border border-border relative">
             <button 
               onClick={() => setShowCreateModal(false)}
               className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
@@ -426,7 +426,7 @@ export default function DiscountsPage() {
       {/* Edit Discount Modal */}
       {showEditModal && selectedDiscount && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-card w-full max-w-md p-6 rounded-lg shadow-lg border border-border relative">
+          <div className="bg-card w-full max-w-lg p-6 rounded-lg shadow-lg border border-border relative">
             <button 
               onClick={() => setShowEditModal(false)}
               className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"

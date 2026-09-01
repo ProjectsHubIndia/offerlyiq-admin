@@ -370,7 +370,7 @@ export default function CatalogPage() {
       {/* Configure Module Modal */}
       {showModuleModal && selectedModule && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-card w-full max-w-md p-6 rounded-lg shadow-lg border border-border relative">
+          <div className="bg-card w-full max-w-lg p-6 rounded-lg shadow-lg border border-border relative">
             <h2 className="text-xl font-bold mb-1">
               Configure {selectedModule.name}
             </h2>
