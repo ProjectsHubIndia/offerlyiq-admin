@@ -589,7 +589,7 @@ export default function UsersPage() {
                           Est. Cost
                         </p>
                         <p className="text-xl font-bold text-orange-500">
-                          ${userMargin.estimated_cost_usd.toFixed(2)}
+                          ${(userMargin.estimated_cost_usd ?? 0).toFixed(2)}
                         </p>
                       </div>
                       <div>
@@ -599,7 +599,7 @@ export default function UsersPage() {
                         <p
                           className={`text-xl font-bold ${userMargin.estimated_margin_usd > 0 ? "text-green-500" : "text-destructive"}`}
                         >
-                          ${userMargin.estimated_margin_usd.toFixed(2)}
+                          ${(userMargin.estimated_margin_usd ?? 0).toFixed(2)}
                         </p>
                       </div>
                     </div>
