@@ -19,10 +19,6 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Admin Dashboard",
   description: "Admin panel for management",
-  icons: {
-    icon: "/favicon_io/Favicon.png",
-    apple: "/favicon_io/Favicon.png",
-  },
 };
 
 export default function RootLayout({
