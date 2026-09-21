@@ -136,6 +136,12 @@ export const admin = {
     axiosMain
       .post(`/admin/plans/${id}/archive`, undefined, authConfig(token))
       .then((r) => r.data),
+  updatePlanHighlights: (id: string, data: any[], token?: string) =>
+    axiosMain
+      .put(`/admin/plans/${id}/highlights`, data, authConfig(token))
+      .then((r) => r.data),
+  getBillingCosts: (token?: string) =>
+    axiosMain.get("/billing/costs", authConfig(token)).then((r) => r.data),
 
   // Catalog
   getModules: (token?: string) =>
@@ -240,4 +246,10 @@ export const admin = {
     axiosMain
       .get(`/admin/discounts/${id}/redemptions`, authConfig(token))
       .then((r) => r.data),
+
+  // Audit log
+  getAuditLog: (token?: string, params?: { actor_user_id?: string; action?: string; target_type?: string; target_id?: string; since?: string; until?: string; page?: number; size?: number }) =>
+    axiosMain.get("/admin/audit", { ...authConfig(token), params }).then((r) => r.data),
+  getAuditActions: (token?: string) =>
+    axiosMain.get("/admin/audit/actions", authConfig(token)).then((r) => r.data),
 };

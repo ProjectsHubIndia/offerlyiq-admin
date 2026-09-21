@@ -21,6 +21,7 @@ import {
   Eye,
   X,
   RefreshCw,
+  History,
 } from "lucide-react";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { ConfirmAction } from "@/components/ConfirmAction";
@@ -375,6 +376,15 @@ export default function UsersPage() {
               </Button>
             </>
           )}
+          {(user.role === "admin" || user.role === "superadmin") && (
+            <a
+              href={`/audit?actor_user_id=${user.id}`}
+              className="inline-flex items-center justify-center h-8 px-2 rounded-md border border-border text-xs text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors gap-1"
+              title="View admin activity"
+            >
+              <History className="w-3.5 h-3.5" /> Activity
+            </a>
+          )}
         </div>
       ),
     },
@@ -555,12 +565,21 @@ export default function UsersPage() {
                   {selectedUser.email}
                 </p>
               </div>
-              <button
-                onClick={() => setShowDetailsModal(false)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X className="w-6 h-6" />
-              </button>
+              <div className="flex items-center gap-2">
+                <a
+                  href={`/audit?target_type=user&target_id=${selectedUser.id}`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md border border-border text-muted-foreground hover:bg-muted/30 hover:text-foreground transition-colors"
+                  title="View audit history for this user"
+                >
+                  <History className="w-3.5 h-3.5" /> View history
+                </a>
+                <button
+                  onClick={() => setShowDetailsModal(false)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
             </div>
 
             <div className="p-6 overflow-y-auto flex-1 space-y-8">

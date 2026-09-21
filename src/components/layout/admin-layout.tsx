@@ -3,16 +3,17 @@
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { 
-  LayoutDashboard, 
-  Users, 
-  Package, 
-  Tags, 
-  Settings, 
+import {
+  LayoutDashboard,
+  Users,
+  Package,
+  Tags,
+  Settings,
   CreditCard,
+  ClipboardList,
   LogOut,
   Menu,
-  X
+  X,
 } from "lucide-react";
 import { LogoSplit } from "@/components/ui/logo";
 import { isAuthenticated } from "@/lib/auth";
@@ -24,6 +25,7 @@ const navItems = [
   { href: "/catalog", label: "Catalog", icon: Settings },
   { href: "/discounts", label: "Discounts", icon: Tags },
   { href: "/billing", label: "Billing Ops", icon: CreditCard },
+  { href: "/audit", label: "Audit Log", icon: ClipboardList },
 ];
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {

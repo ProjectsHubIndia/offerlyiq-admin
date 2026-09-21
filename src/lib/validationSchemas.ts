@@ -1,23 +1,5 @@
 import * as yup from "yup";
 
-export const registerSchema = yup.object({
-  full_name: yup.string().trim().required("Full name is required"),
-  email: yup.string().email("Enter a valid email address").required("Email is required"),
-  password: yup.string().min(8, "Password must be at least 8 characters").required("Password is required"),
-});
-
-export const forgotPasswordSchema = yup.object({
-  email: yup.string().email("Enter a valid email address").required("Email is required"),
-});
-
-export const resetPasswordSchema = yup.object({
-  new_password: yup.string().min(8, "Password must be at least 8 characters").required("New password is required"),
-  confirm_password: yup
-    .string()
-    .oneOf([yup.ref("new_password")], "Passwords do not match")
-    .required("Please confirm your new password"),
-});
-
 export const loginSchema = yup.object({
   email: yup
     .string()
@@ -28,18 +10,6 @@ export const loginSchema = yup.object({
 
 export const profileSettingsSchema = yup.object({
   full_name: yup.string().trim().required("Full name is required"),
-});
-
-export const changePasswordSchema = yup.object({
-  current_password: yup.string().required("Current password is required"),
-  new_password: yup
-    .string()
-    .min(8, "Password must be at least 8 characters")
-    .required("New password is required"),
-  confirm_password: yup
-    .string()
-    .oneOf([yup.ref("new_password")], "Passwords do not match")
-    .required("Please confirm your new password"),
 });
 
 export const careerRecommendationsSchema = yup.object({

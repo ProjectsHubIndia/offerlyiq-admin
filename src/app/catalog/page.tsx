@@ -275,8 +275,11 @@ export default function CatalogPage() {
                 </CardHeader>
                 <CardContent className="p-0">
                   <div className="divide-y divide-border">
-                    {Object.entries(settings).map(([key, value]) => {
+                    {Object.entries(settings)
+                      .filter(([key]) => key !== "enforcement_enabled")
+                      .map(([key, value]) => {
                       const originalType = typeof value;
+                      const isObject = originalType === "object" && value !== null;
                       const editingValue =
                         editingSettings[key] !== undefined
                           ? editingSettings[key]
@@ -292,12 +295,17 @@ export default function CatalogPage() {
                               {key.replace(/_/g, " ")}
                             </label>
                             <p className="text-sm text-muted-foreground mt-1">
-                              Set the global {key.replace(/_/g, " ")}{" "}
-                              configuration.
+                              {isObject
+                                ? "Complex setting — edit via API or the Features tab."
+                                : `Set the global ${key.replace(/_/g, " ")} configuration.`}
                             </p>
                           </div>
                           <div className="flex gap-3 items-center w-full sm:w-[350px]">
-                            {originalType === "boolean" ? (
+                            {isObject ? (
+                              <pre className="flex-1 bg-muted/30 border border-border rounded-md px-3 py-2 text-xs text-muted-foreground overflow-x-auto whitespace-pre-wrap break-all">
+                                {JSON.stringify(value, null, 2)}
+                              </pre>
+                            ) : originalType === "boolean" ? (
                               <div className="flex-1">
                                 <input
                                   type="checkbox"
@@ -336,18 +344,20 @@ export default function CatalogPage() {
                                 className="flex-1 bg-background border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                               />
                             )}
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() => handleSaveSetting(key)}
-                              disabled={settingLoading === key}
-                            >
-                              {settingLoading === key ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <Save className="w-4 h-4" />
-                              )}
-                            </Button>
+                            {!isObject && (
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => handleSaveSetting(key)}
+                                disabled={settingLoading === key}
+                              >
+                                {settingLoading === key ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Save className="w-4 h-4" />
+                                )}
+                              </Button>
+                            )}
                           </div>
                         </div>
                       );

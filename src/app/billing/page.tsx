@@ -3,13 +3,6 @@
 import { useEffect, useState } from "react";
 import { admin } from "@/lib/api";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import {
   Loader2,
   RefreshCw,
   AlertCircle,
@@ -25,6 +18,21 @@ import { toast } from "sonner";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { DateRange } from "react-day-picker";
 import { format } from "date-fns";
+
+const CURRENCY_EXPONENTS: Record<string, number> = {
+  JPY: 0, KRW: 0, BIF: 0, CLP: 0, GNF: 0, ISK: 0, MGA: 0, PYG: 0,
+  RWF: 0, UGX: 0, VND: 0, VUV: 0, XAF: 0, XOF: 0, XPF: 0,
+  KWD: 3, BHD: 3, OMR: 3, JOD: 3,
+};
+
+function formatAmount(amountMinor: number | string | null | undefined, currencyCode?: string | null): string {
+  if (amountMinor === null || amountMinor === undefined) return "-";
+  const minor = typeof amountMinor === "string" ? parseInt(amountMinor, 10) : amountMinor;
+  if (isNaN(minor)) return "-";
+  const code = currencyCode || "USD";
+  const exp = CURRENCY_EXPONENTS[code] ?? 2;
+  return `${code} ${(minor / Math.pow(10, exp)).toFixed(exp)}`;
+}
 
 export default function BillingOpsPage() {
   const [activeTab, setActiveTab] = useState<
@@ -67,6 +75,10 @@ export default function BillingOpsPage() {
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [selectedTx, setSelectedTx] = useState<any>(null);
   const [refundReason, setRefundReason] = useState("");
+
+  const [showReinstateModal, setShowReinstateModal] = useState(false);
+  const [reinstateTarget, setReinstateTarget] = useState<any>(null);
+  const [reinstateReason, setReinstateReason] = useState("");
 
   const [showWebhookModal, setShowWebhookModal] = useState(false);
   const [selectedWebhook, setSelectedWebhook] = useState<any>(null);
@@ -169,13 +181,32 @@ export default function BillingOpsPage() {
       const { getAccessToken } = await import("@/lib/auth");
       const token = getAccessToken() || undefined;
       await admin.refundTransaction(selectedTx.id, refundReason, token);
-      toast.success("Refund initiated successfully");
+      toast.success("Refund requested — credits will be taken back when Paddle confirms");
       setShowRefundModal(false);
       setRefundReason("");
       fetchData();
     } catch (err) {
       console.error("Failed to refund transaction", err);
       toast.error("Failed to refund transaction");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleReinstate = async () => {
+    if (!reinstateTarget || !reinstateReason) return;
+    setActionLoading("reinstate");
+    try {
+      const { getAccessToken } = await import("@/lib/auth");
+      const token = getAccessToken() || undefined;
+      await admin.reinstateUser(reinstateTarget.user_id, reinstateReason, token);
+      toast.success("User reinstated successfully");
+      setShowReinstateModal(false);
+      setReinstateReason("");
+      fetchData();
+    } catch (err) {
+      console.error("Failed to reinstate user", err);
+      toast.error("Failed to reinstate user");
     } finally {
       setActionLoading(null);
     }
@@ -276,7 +307,7 @@ export default function BillingOpsPage() {
     },
   ];
 
-  const createTxColumns = (showActions: boolean): Column<any>[] => {
+  const createTxColumns = (showActions: boolean, showReinstate = false): Column<any>[] => {
     const cols: Column<any>[] = [
       {
         key: "status",
@@ -304,9 +335,7 @@ export default function BillingOpsPage() {
         header: "Amount",
         render: (tx) => (
           <span className="font-mono text-sm">
-            {tx.amount_minor
-              ? `${tx.currency_code} ${(tx.amount_minor / 100).toFixed(2)}`
-              : "-"}
+            {formatAmount(tx.amount_minor, tx.currency_code)}
           </span>
         ),
       },
@@ -333,7 +362,7 @@ export default function BillingOpsPage() {
         header: "Date",
         render: (tx) => (
           <span className="text-xs text-muted-foreground">
-            {new Date(tx.created_at).toLocaleString()}
+            {tx.occurred_at ? new Date(tx.occurred_at).toLocaleString() : "N/A"}
           </span>
         ),
       },
@@ -365,6 +394,30 @@ export default function BillingOpsPage() {
                 <Reply className="w-3.5 h-3.5 mr-1" /> Refund
               </Button>
             )}
+          </div>
+        ),
+      });
+    }
+
+    if (showReinstate) {
+      cols.push({
+        key: "reinstate",
+        header: "Actions",
+        align: "right",
+        render: (tx) => (
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-2 text-xs"
+              onClick={() => {
+                setReinstateTarget(tx);
+                setShowReinstateModal(true);
+              }}
+              title="Reinstate User"
+            >
+              Reinstate
+            </Button>
           </div>
         ),
       });
@@ -477,7 +530,7 @@ export default function BillingOpsPage() {
 
         {(activeTab === "transactions" || activeTab === "chargebacks") && (
           <DataTable
-            columns={createTxColumns(activeTab === "transactions")}
+            columns={createTxColumns(activeTab === "transactions", activeTab === "chargebacks")}
             data={activeTab === "transactions" ? transactions : chargebacks}
             isLoading={loading}
             keyExtractor={(tx) => tx.id || Math.random().toString()}
@@ -502,8 +555,7 @@ export default function BillingOpsPage() {
               You are about to refund transaction{" "}
               <strong>{selectedTx.id}</strong> for{" "}
               <strong className="text-foreground">
-                {selectedTx.currency_code}{" "}
-                {(selectedTx.amount_minor / 100).toFixed(2)}
+                {formatAmount(selectedTx.amount_minor, selectedTx.currency_code)}
               </strong>
               . This action cannot be undone.
             </p>
@@ -536,6 +588,57 @@ export default function BillingOpsPage() {
                     <Loader2 className="w-4 h-4 animate-spin mr-2" />
                   ) : null}
                   Confirm Refund
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reinstate Modal */}
+      {showReinstateModal && reinstateTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-card w-full max-w-md p-6 rounded-lg shadow-lg border border-border relative">
+            <h2 className="text-xl font-bold mb-4">Reinstate User</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Reinstate account for user{" "}
+              <strong className="text-foreground font-mono">
+                {reinstateTarget.user_id}
+              </strong>
+              . This will re-activate their account after the chargeback
+              deactivation.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Reason for Reinstatement
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Chargeback resolved, customer verified"
+                  value={reinstateReason}
+                  onChange={(e) => setReinstateReason(e.target.value)}
+                  className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div className="flex justify-end gap-2 mt-6">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowReinstateModal(false);
+                    setReinstateReason("");
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleReinstate}
+                  disabled={actionLoading === "reinstate" || !reinstateReason.trim()}
+                >
+                  {actionLoading === "reinstate" ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : null}
+                  Confirm Reinstate
                 </Button>
               </div>
             </div>
@@ -592,13 +695,13 @@ export default function BillingOpsPage() {
                         ? new Date(selectedWebhook.occurred_at).toLocaleString()
                         : "N/A"}
                     </div>
-                    {selectedWebhook.error_message && (
+                    {selectedWebhook.error && (
                       <div className="col-span-2">
                         <span className="font-medium text-muted-foreground">
                           Error:
                         </span>{" "}
                         <span className="text-destructive font-mono text-xs break-all">
-                          {selectedWebhook.error_message}
+                          {selectedWebhook.error}
                         </span>
                       </div>
                     )}
@@ -651,14 +754,10 @@ export default function BillingOpsPage() {
                               Total Amount
                             </span>
                             <span className="font-mono text-green-500 font-bold">
-                              $
-                              {(
-                                parseInt(
-                                  selectedWebhook.payload.data.details.totals
-                                    .total,
-                                ) / 100
-                              ).toFixed(2)}{" "}
-                              {selectedWebhook.payload.data.currency_code}
+                              {formatAmount(
+                                selectedWebhook.payload.data.details.totals.total,
+                                selectedWebhook.payload.data.currency_code,
+                              )}
                             </span>
                           </div>
                         )}

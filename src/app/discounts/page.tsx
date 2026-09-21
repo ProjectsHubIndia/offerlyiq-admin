@@ -10,7 +10,7 @@ import {
   CardDescription
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Plus, Trash2, Tag, Copy, Eye, X, Edit2, Check } from "lucide-react";
+import { Loader2, Plus, Trash2, Tag, Copy, Eye, X, Edit2, Check, History } from "lucide-react";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { toast } from "sonner";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
@@ -151,7 +151,7 @@ export default function DiscountsPage() {
     setSelectedDiscount(discount);
     setEditData({
       status: discount.status || "active",
-      max_redemptions: discount.max_uses || 0,
+      max_redemptions: discount.max_redemptions ?? discount.max_uses ?? 0,
       expires_at: discount.expires_at ? new Date(discount.expires_at).toISOString().split('T')[0] : ""
     });
     setShowEditModal(true);
@@ -260,15 +260,22 @@ export default function DiscountsPage() {
           >
             <Edit2 className="w-4 h-4 text-muted-foreground" />
           </Button>
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            variant="ghost"
+            size="icon"
             className="text-destructive hover:bg-destructive/10 hover:text-destructive ml-1"
             onClick={() => handleDelete(discount.id)}
-            title="Delete Discount"
+            title="Disable Discount"
           >
             <Trash2 className="w-4 h-4" />
           </Button>
+          <a
+            href={`/audit?target_type=discount&target_id=${discount.id}`}
+            className="inline-flex items-center justify-center w-8 h-8 rounded-md text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors ml-1"
+            title="View audit history"
+          >
+            <History className="w-4 h-4" />
+          </a>
         </div>
       ),
     },
@@ -471,9 +478,9 @@ export default function DiscountsPage() {
         isOpen={!!deleteConfirmId}
         onClose={() => setDeleteConfirmId(null)}
         onConfirm={confirmDelete}
-        title="Delete Discount"
-        description="Are you sure you want to delete this discount? This action cannot be undone."
-        confirmText="Delete"
+        title="Disable Discount"
+        description="This will disable the discount code so no one can redeem it. Past redemptions are kept. This cannot be undone."
+        confirmText="Disable"
         isDestructive={true}
       />
     </div>
