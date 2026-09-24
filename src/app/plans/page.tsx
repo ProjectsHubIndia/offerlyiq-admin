@@ -25,14 +25,17 @@ import {
   ChevronUp,
   ChevronDown,
   History,
+  Info,
+  Trash2,
 } from "lucide-react";
 import { ConfirmAction } from "@/components/ConfirmAction";
 import { toast } from "sonner";
+import { useAdminSession } from "@/components/layout/admin-session-provider";
 
 const SUPPORTED_CURRENCIES = [
-  "AED","AUD","BRL","CAD","CHF","CZK","DKK","EUR","GBP","HKD",
-  "HUF","IDR","ILS","INR","JPY","KRW","KWD","MXN","MYR","NOK",
-  "NZD","PHP","PLN","RON","SAR","SEK","SGD","THB","TWD","USD","ZAR",
+  "ARS","AUD","BRL","CAD","CHF","CNY","COP","CZK","DKK","EUR",
+  "GBP","HKD","HUF","ILS","INR","JPY","KRW","MXN","NOK","NZD",
+  "PLN","RUB","SEK","SGD","THB","TRY","TWD","UAH","USD","VND","ZAR",
 ];
 
 const CURRENCY_EXPONENTS: Record<string, number> = {
@@ -65,6 +68,7 @@ function toMinor(major: number, code: string): number {
 }
 
 export default function PlansPage() {
+  const { user: currentUser } = useAdminSession();
   const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -81,10 +85,10 @@ export default function PlansPage() {
   const [availableFeatures, setAvailableFeatures] = useState<any[]>([]);
 
   const [showHighlightsModal, setShowHighlightsModal] = useState(false);
-  const [planHighlights, setPlanHighlights] = useState<any[]>([]);
+  const [planHighlights, setPlanHighlights] = useState<{ text: string; label: string }[]>([]);
   const [highlightsLoading, setHighlightsLoading] = useState(false);
-  const [highlightsCustomized, setHighlightsCustomized] = useState(false);
   const [billingCosts, setBillingCosts] = useState<any[]>([]);
+  const [billingCostsLoading, setBillingCostsLoading] = useState(false);
 
   // Create Plan Modal
   const [showCreatePlanModal, setShowCreatePlanModal] = useState(false);
@@ -148,6 +152,7 @@ export default function PlansPage() {
   useEffect(() => {
     fetchPlans();
     fetchFeatures();
+    fetchBillingCosts();
   }, []);
 
   const handleTogglePublish = (plan: any) => {
@@ -191,12 +196,58 @@ export default function PlansPage() {
       consequence:
         "Archived plans are completely hidden from all API lists and cannot be unarchived. Are you sure?",
       isDanger: true,
-      action: async (reason: string) => {
-        const { getAccessToken } = await import("@/lib/auth");
-        const token = getAccessToken() || undefined;
-        await admin.archivePlan(plan.id, token);
-        setConfirmState((prev) => ({ ...prev, isOpen: false }));
-        fetchPlans();
+      action: async () => {
+        try {
+          const { getAccessToken } = await import("@/lib/auth");
+          const token = getAccessToken() || undefined;
+          await admin.archivePlan(plan.id, token);
+          setConfirmState((prev) => ({ ...prev, isOpen: false }));
+          toast.success("Plan archived successfully");
+          fetchPlans();
+        } catch (err: any) {
+          console.error("Failed to archive plan", err);
+          toast.error(err.response?.data?.detail || "Failed to archive plan");
+        }
+      },
+    });
+  };
+
+  const handleDeletePlan = (plan: any) => {
+    setConfirmState({
+      isOpen: true,
+      title: `Delete ${plan.name}`,
+      consequence: `Delete plan "${plan.name}" (${plan.code})? This will permanently remove its prices, features and highlights. This cannot be undone.`,
+      isDanger: true,
+      action: async () => {
+        try {
+          const { getAccessToken } = await import("@/lib/auth");
+          const token = getAccessToken() || undefined;
+          await admin.deletePlan(plan.id, token);
+          setConfirmState((prev) => ({ ...prev, isOpen: false }));
+          toast.success("Plan deleted successfully");
+          fetchPlans();
+        } catch (err: any) {
+          console.error("Failed to delete plan", err);
+          const detail = err.response?.data?.detail;
+          if (err.response?.status === 409) {
+            if (typeof detail === "string" && detail.includes("sold")) {
+              toast.error(
+                "This plan has been sold and cannot be deleted. You can archive it instead.",
+                {
+                  action: {
+                    label: "Archive Plan",
+                    onClick: () => handleArchive(plan),
+                  },
+                  duration: 8000,
+                },
+              );
+            } else {
+              toast.error(typeof detail === "string" ? detail : "Plan cannot be deleted");
+            }
+          } else {
+            toast.error(typeof detail === "string" ? detail : "Failed to delete plan");
+          }
+        }
       },
     });
   };
@@ -208,6 +259,10 @@ export default function PlansPage() {
       (plan.prices ? [...plan.prices] : []).map((p: any) => ({
         ...p,
         _major: String(toMajor(p.amount_minor ?? 0, p.currency_code)),
+        _compare_major:
+          p.compare_at_amount_minor != null
+            ? String(toMajor(p.compare_at_amount_minor, p.currency_code))
+            : "",
         _country_input: "",
       }))
     );
@@ -217,20 +272,49 @@ export default function PlansPage() {
   const handleSavePrices = async () => {
     if (!selectedPlan) return;
 
+    // Auto-commit any partially typed country code that hasn't been confirmed with Enter
+    const withCommitted = planPrices.map((p) => {
+      const pending = (p._country_input || "").trim().toUpperCase();
+      if (pending.length === 2 && !(p.country_codes || []).includes(pending)) {
+        return { ...p, country_codes: [...(p.country_codes || []), pending], _country_input: "" };
+      }
+      return p;
+    });
+    setPlanPrices(withCommitted);
+
     // Client-side validation (mirrors server rules)
     const usedCurrencies: string[] = [];
     const usedCountries: Record<string, string> = {};
-    for (const p of planPrices) {
+    for (const p of withCommitted) {
       if (!p.currency_code) {
         toast.error("Every row needs a currency"); return;
       }
+      if (!SUPPORTED_CURRENCIES.includes(p.currency_code)) {
+        toast.error(`Paddle cannot charge in ${p.currency_code}.`); return;
+      }
       if (usedCurrencies.includes(p.currency_code)) {
-        toast.error(`Duplicate currency: ${p.currency_code}`); return;
+        toast.error("Duplicate currency in price list"); return;
       }
       usedCurrencies.push(p.currency_code);
 
+      const majorVal = parseFloat(p._major);
+      if (isNaN(majorVal) || majorVal <= 0) {
+        toast.error(`Amount for ${p.currency_code} must be greater than 0`); return;
+      }
+
       if (p.currency_code === "USD" && (p.country_codes || []).length > 0) {
         toast.error("The base currency applies to every country without an override, so it cannot list countries of its own"); return;
+      }
+
+      if (p.currency_code !== "USD" && (!p.country_codes || p.country_codes.length === 0)) {
+        toast.error(`${p.currency_code} has no countries assigned, so no buyer would ever see it. Assign countries or remove the price.`); return;
+      }
+
+      const compareMajorNum = parseFloat(p._compare_major);
+      if (!isNaN(compareMajorNum) && compareMajorNum > 0) {
+        if (compareMajorNum <= majorVal) {
+          toast.error(`The ${p.currency_code} compare-at price must be higher than the real price`); return;
+        }
       }
 
       for (const cc of (p.country_codes || [])) {
@@ -245,12 +329,20 @@ export default function PlansPage() {
     }
 
     // Convert major → minor for each row
-    const payload = planPrices.map((p) => ({
-      currency_code: p.currency_code,
-      amount_minor: toMinor(parseFloat(p._major) || 0, p.currency_code),
-      country_codes: p.country_codes || [],
-      ...(p.compare_at_amount_minor != null ? { compare_at_amount_minor: p.compare_at_amount_minor } : {}),
-    }));
+    const payload = withCommitted.map((p) => {
+      const amountMinor = toMinor(parseFloat(p._major) || 0, p.currency_code);
+      const compareMajorNum = parseFloat(p._compare_major);
+      const compareMinor =
+        !isNaN(compareMajorNum) && compareMajorNum > 0
+          ? toMinor(compareMajorNum, p.currency_code)
+          : undefined;
+      return {
+        currency_code: p.currency_code,
+        amount_minor: amountMinor,
+        country_codes: p.currency_code === "USD" ? [] : (p.country_codes || []),
+        ...(compareMinor != null ? { compare_at_amount_minor: compareMinor } : {}),
+      };
+    });
 
     setPricesLoading(true);
     setPricesPublishFailed(false);
@@ -279,8 +371,13 @@ export default function PlansPage() {
           setPricesPublishFailed(true);
           setSelectedPlan((prev: any) => ({ ...prev, status: "draft" }));
           fetchPlans();
-          const detail = (publishErr as any)?.response?.data?.detail || "Unknown publish error";
-          toast.error(`Prices saved but publish failed — plan is now DRAFT. ${detail}`);
+          const detail =
+            publishErr.response?.data?.detail ||
+            publishErr?.message ||
+            "Unknown publish error";
+          toast.error(
+            `Prices saved but publish failed — plan is now DRAFT. ${typeof detail === "string" ? detail : JSON.stringify(detail)}`
+          );
         }
       } else {
         setShowPricesModal(false);
@@ -288,8 +385,9 @@ export default function PlansPage() {
         toast.success("Prices saved");
       }
     } catch (err: any) {
-      const detail = err?.response?.data?.detail || "Failed to update prices";
-      toast.error(detail);
+      const detail =
+        err.response?.data?.detail || err?.message || "Failed to update prices";
+      toast.error(typeof detail === "string" ? detail : "Failed to update prices");
     } finally {
       setPricesLoading(false);
     }
@@ -319,6 +417,7 @@ export default function PlansPage() {
   };
 
   const fetchBillingCosts = async () => {
+    setBillingCostsLoading(true);
     try {
       const { getAccessToken } = await import("@/lib/auth");
       const token = getAccessToken() || undefined;
@@ -326,47 +425,49 @@ export default function PlansPage() {
       setBillingCosts(response || []);
     } catch (err) {
       console.error("Failed to fetch billing costs", err);
-      toast.error("Failed to load modules — close and reopen to retry");
+      toast.error("Failed to load modules. Please refresh the page.");
+    } finally {
+      setBillingCostsLoading(false);
     }
   };
 
   const handleOpenHighlights = (plan: any) => {
     setSelectedPlan(plan);
     const stored = plan.highlights || [];
-    setHighlightsCustomized(stored.length > 0);
     setPlanHighlights(
       stored.map((h: any) => ({
-        type: h.module_code ? "module" : "text",
-        module_code: h.module_code || "",
         text: h.text || "",
         label: h.label || "",
       })),
     );
     setShowHighlightsModal(true);
-    if (billingCosts.length === 0) fetchBillingCosts();
+    if (billingCosts.length === 0) {
+      fetchBillingCosts();
+    }
   };
 
   const handleSaveHighlights = async () => {
     if (!selectedPlan) return;
 
+    if (planHighlights.length > 5) {
+      toast.error("A pricing card takes at most 5 highlights");
+      return;
+    }
+
     // Validation
-    const usedCodes: string[] = [];
     for (const row of planHighlights) {
-      if (row.type === "module") {
-        if (!row.module_code) {
-          toast.error("Select a module for each module row");
-          return;
-        }
-        if (usedCodes.includes(row.module_code)) {
-          toast.error(`Module '${row.module_code}' is highlighted more than once`);
-          return;
-        }
-        usedCodes.push(row.module_code);
-      } else {
-        if (!row.text.trim()) {
-          toast.error("Text rows cannot be empty");
-          return;
-        }
+      const trimmed = (row.text || "").trim();
+      if (!trimmed) {
+        toast.error("A highlight needs text");
+        return;
+      }
+      if (trimmed.length > 160) {
+        toast.error("Highlight text cannot exceed 160 characters");
+        return;
+      }
+      if (row.label && row.label.length > 64) {
+        toast.error("Highlight label cannot exceed 64 characters");
+        return;
       }
     }
 
@@ -374,39 +475,25 @@ export default function PlansPage() {
     try {
       const { getAccessToken } = await import("@/lib/auth");
       const token = getAccessToken() || undefined;
-      const payload = planHighlights.map((row) =>
-        row.type === "module"
-          ? { module_code: row.module_code, ...(row.label ? { label: row.label } : {}) }
-          : { text: row.text },
-      );
+      const payload = planHighlights.map((row) => ({
+        text: row.text.trim(),
+        ...(row.label && row.label.trim() ? { label: row.label.trim() } : {}),
+      }));
       await admin.updatePlanHighlights(selectedPlan.id, payload, token);
       setShowHighlightsModal(false);
       fetchPlans();
       toast.success("Highlights saved");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to update highlights", err);
-      toast.error("Failed to save highlights");
+      const msg = err?.response?.data?.detail || "Failed to save highlights";
+      toast.error(typeof msg === "string" ? msg : JSON.stringify(msg));
     } finally {
       setHighlightsLoading(false);
     }
   };
 
-  const handleResetHighlights = async () => {
-    if (!selectedPlan) return;
-    setHighlightsLoading(true);
-    try {
-      const { getAccessToken } = await import("@/lib/auth");
-      const token = getAccessToken() || undefined;
-      await admin.updatePlanHighlights(selectedPlan.id, [], token);
-      setShowHighlightsModal(false);
-      fetchPlans();
-      toast.success("Reset to automatic highlights");
-    } catch (err) {
-      console.error("Failed to reset highlights", err);
-      toast.error("Failed to reset highlights");
-    } finally {
-      setHighlightsLoading(false);
-    }
+  const handleClearHighlights = () => {
+    setPlanHighlights([]);
   };
 
   const moveHighlight = (idx: number, dir: -1 | 1) => {
@@ -669,6 +756,17 @@ export default function PlansPage() {
                         <X className="w-3.5 h-3.5" /> Archive
                       </Button>
                     )}
+                    {currentUser?.role === "superadmin" && !isPublished && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="flex-1 min-w-[30%] gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => handleDeletePlan(plan)}
+                        title="Delete Plan (Superadmin)"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> Delete
+                      </Button>
+                    )}
                     <a
                       href={`/audit?target_type=plan&target_id=${plan.id}`}
                       className="flex-1 min-w-[30%] flex items-center justify-center gap-2 px-3 py-1.5 text-sm rounded-md border border-border text-muted-foreground hover:bg-muted/30 hover:text-foreground transition-colors"
@@ -690,7 +788,8 @@ export default function PlansPage() {
           <div className="bg-card w-full max-w-2xl p-6 rounded-lg shadow-lg border border-border relative max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setShowPricesModal(false)}
-              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
+              disabled={pricesLoading}
+              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <X className="w-5 h-5" />
             </button>
@@ -758,6 +857,31 @@ export default function PlansPage() {
                               setPlanPrices(next);
                             }}
                             className="w-full pl-7 pr-2 py-1.5 bg-background border border-border rounded text-sm font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Optional Compare-At Amount */}
+                      <div className="w-32 shrink-0">
+                        <label className="block text-[10px] uppercase font-bold text-muted-foreground mb-1">
+                          Anchor / Struck ({sym})
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
+                            {sym}
+                          </span>
+                          <input
+                            type="number"
+                            step={getCurrencyExponent(p.currency_code) === 0 ? "1" : getCurrencyExponent(p.currency_code) === 3 ? "0.001" : "0.01"}
+                            min="0"
+                            placeholder="Optional"
+                            value={p._compare_major ?? ""}
+                            onChange={(e) => {
+                              const next = [...planPrices];
+                              next[idx] = { ...next[idx], _compare_major: e.target.value };
+                              setPlanPrices(next);
+                            }}
+                            className="w-full pl-7 pr-2 py-1.5 bg-background border border-border rounded text-sm font-mono placeholder:text-xs"
                           />
                         </div>
                       </div>
@@ -861,7 +985,14 @@ export default function PlansPage() {
                 onClick={() =>
                   setPlanPrices([
                     ...planPrices,
-                    { currency_code: "EUR", amount_minor: 0, country_codes: [], _major: "", _country_input: "" },
+                    {
+                      currency_code: "EUR",
+                      amount_minor: 0,
+                      country_codes: [],
+                      _major: "",
+                      _compare_major: "",
+                      _country_input: "",
+                    },
                   ])
                 }
               >
@@ -878,7 +1009,12 @@ export default function PlansPage() {
                   .map((p) => {
                     const sym = CURRENCY_SYMBOLS[p.currency_code] || p.currency_code;
                     const dec = getCurrencyExponent(p.currency_code) === 0 ? 0 : getCurrencyExponent(p.currency_code) === 3 ? 3 : 2;
-                    return `${sym}${Number(p._major).toFixed(dec)}`;
+                    const formatted = `${sym}${Number(p._major).toFixed(dec)}`;
+                    const compNum = parseFloat(p._compare_major);
+                    if (!isNaN(compNum) && compNum > parseFloat(p._major)) {
+                      return `${sym}${compNum.toFixed(dec)} (struck) → ${formatted}`;
+                    }
+                    return formatted;
                   })
                   .join(" · ")}
               </div>
@@ -1273,228 +1409,180 @@ export default function PlansPage() {
           <div className="bg-card w-full max-w-2xl p-6 rounded-lg shadow-lg border border-border relative max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setShowHighlightsModal(false)}
-              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
+              disabled={highlightsLoading}
+              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <X className="w-5 h-5" />
             </button>
-            <h2 className="text-xl font-bold mb-1">
-              Highlights: {selectedPlan.name}
-            </h2>
+            <div className="flex items-center justify-between pr-8 mb-1">
+              <h2 className="text-xl font-bold">
+                Highlights: {selectedPlan.name}
+              </h2>
+              {planHighlights.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleClearHighlights}
+                  disabled={highlightsLoading}
+                  className="text-xs text-muted-foreground hover:text-destructive h-8 px-2"
+                >
+                  Clear all
+                </Button>
+              )}
+            </div>
 
-            {!highlightsCustomized ? (
-              <>
-                <p className="text-sm text-muted-foreground mb-6">
-                  This plan is using <strong>automatic highlights</strong> — the
-                  server generates these from the module list. Customise to
-                  choose and order the lines shown on this card.
-                </p>
-                <div className="flex justify-end gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowHighlightsModal(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setHighlightsCustomized(true);
-                      setPlanHighlights([]);
-                    }}
-                  >
-                    <Sparkles className="w-4 h-4 mr-2" /> Customise
-                  </Button>
+            <p className="text-xs text-muted-foreground mb-4">
+              What you type here prints character for character on the pricing card.
+            </p>
+
+            <div className="space-y-3 mb-4 max-h-[50vh] overflow-y-auto pr-1">
+              {planHighlights.length === 0 ? (
+                <div className="text-sm text-muted-foreground text-center py-8 border border-dashed border-border rounded-lg bg-muted/10">
+                  <p className="font-medium text-foreground/80 mb-1">
+                    No highlights — this card shows none
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Click "Add highlight" below to add bullet lines for this plan card.
+                  </p>
                 </div>
-              </>
-            ) : (
-              <>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Module rows update automatically when credit costs change. Use
-                  Text only for non-quantity bullets like "Priority support".
-                </p>
-
-                <div className="space-y-3 mb-4 max-h-[50vh] overflow-y-auto pr-1">
-                  {planHighlights.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-4 border border-dashed border-border rounded-md">
-                      No highlights yet — click Add highlight below.
-                    </p>
-                  )}
-                  {planHighlights.map((row, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-start gap-2 p-3 border border-border rounded-md bg-muted/20"
-                    >
-                      {/* Reorder */}
-                      <div className="flex flex-col gap-1 pt-1 shrink-0">
-                        <button
-                          onClick={() => moveHighlight(idx, -1)}
-                          disabled={idx === 0}
-                          className="text-muted-foreground hover:text-foreground disabled:opacity-30"
-                        >
-                          <ChevronUp className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => moveHighlight(idx, 1)}
-                          disabled={idx === planHighlights.length - 1}
-                          className="text-muted-foreground hover:text-foreground disabled:opacity-30"
-                        >
-                          <ChevronDown className="w-4 h-4" />
-                        </button>
-                      </div>
-
-                      {/* Type toggle */}
-                      <div className="flex flex-col gap-1 shrink-0 pt-1">
-                        <label className="flex items-center gap-1.5 text-xs cursor-pointer">
-                          <input
-                            type="radio"
-                            checked={row.type === "module"}
-                            onChange={() => {
-                              const next = [...planHighlights];
-                              next[idx] = { ...next[idx], type: "module", text: "" };
-                              setPlanHighlights(next);
-                            }}
-                            className="accent-primary"
-                          />
-                          Module
-                        </label>
-                        <label className="flex items-center gap-1.5 text-xs cursor-pointer">
-                          <input
-                            type="radio"
-                            checked={row.type === "text"}
-                            onChange={() => {
-                              const next = [...planHighlights];
-                              next[idx] = { ...next[idx], type: "text", module_code: "", label: "" };
-                              setPlanHighlights(next);
-                            }}
-                            className="accent-primary"
-                          />
-                          Text
-                        </label>
-                      </div>
-
-                      {/* Main input */}
-                      <div className="flex-1 min-w-0">
-                        {row.type === "module" ? (
-                          <div className="flex gap-2">
-                            <div className="flex-1">
-                              <label className="block text-[10px] uppercase font-bold text-muted-foreground mb-1">
-                                Module
-                              </label>
-                              <select
-                                value={row.module_code}
-                                onChange={(e) => {
-                                  const next = [...planHighlights];
-                                  next[idx] = { ...next[idx], module_code: e.target.value };
-                                  setPlanHighlights(next);
-                                }}
-                                className="w-full px-2 py-1.5 bg-background border border-border rounded text-sm"
-                              >
-                                <option value="">Select module...</option>
-                                {billingCosts.map((c: any) => (
-                                  <option key={c.code} value={c.code}>
-                                    {c.name || c.code}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            <div className="w-36">
-                              <label className="block text-[10px] uppercase font-bold text-muted-foreground mb-1">
-                                Label (optional)
-                              </label>
-                              <input
-                                type="text"
-                                value={row.label}
-                                maxLength={64}
-                                onChange={(e) => {
-                                  const next = [...planHighlights];
-                                  next[idx] = { ...next[idx], label: e.target.value };
-                                  setPlanHighlights(next);
-                                }}
-                                placeholder="Override label"
-                                className="w-full px-2 py-1.5 bg-background border border-border rounded text-sm"
-                              />
-                            </div>
-                          </div>
-                        ) : (
-                          <div>
-                            <label className="block text-[10px] uppercase font-bold text-muted-foreground mb-1">
-                              Text
-                            </label>
-                            <input
-                              type="text"
-                              value={row.text}
-                              maxLength={160}
-                              onChange={(e) => {
-                                const next = [...planHighlights];
-                                next[idx] = { ...next[idx], text: e.target.value };
-                                setPlanHighlights(next);
-                              }}
-                              placeholder="e.g. Priority support"
-                              className="w-full px-2 py-1.5 bg-background border border-border rounded text-sm"
-                            />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Remove */}
+              ) : (
+                planHighlights.map((row, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center gap-2 p-2.5 border border-border rounded-lg bg-muted/20"
+                  >
+                    {/* Reorder */}
+                    <div className="flex flex-col gap-0.5 shrink-0">
                       <button
-                        onClick={() =>
-                          setPlanHighlights(planHighlights.filter((_, i) => i !== idx))
-                        }
-                        className="text-muted-foreground hover:text-destructive mt-1 shrink-0"
+                        type="button"
+                        onClick={() => moveHighlight(idx, -1)}
+                        disabled={idx === 0 || highlightsLoading}
+                        className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30 rounded hover:bg-muted"
+                        title="Move up"
                       >
-                        <X className="w-4 h-4" />
+                        <ChevronUp className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveHighlight(idx, 1)}
+                        disabled={idx === planHighlights.length - 1 || highlightsLoading}
+                        className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30 rounded hover:bg-muted"
+                        title="Move down"
+                      >
+                        <ChevronDown className="w-3.5 h-3.5" />
                       </button>
                     </div>
-                  ))}
-                </div>
 
-                <div className="flex items-center justify-between mb-6">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-dashed"
-                    disabled={planHighlights.length >= 5}
-                    onClick={() =>
-                      setPlanHighlights([
-                        ...planHighlights,
-                        { type: "module", module_code: "", text: "", label: "" },
-                      ])
-                    }
-                  >
-                    <Plus className="w-3.5 h-3.5 mr-1" /> Add highlight
-                  </Button>
-                  <span className="text-xs text-muted-foreground">
-                    {planHighlights.length} of 5 used
-                  </span>
-                </div>
+                    {/* Text input */}
+                    <div className="flex-1 min-w-0">
+                      <input
+                        type="text"
+                        value={row.text}
+                        maxLength={160}
+                        disabled={highlightsLoading}
+                        onChange={(e) => {
+                          const next = [...planHighlights];
+                          next[idx] = { ...next[idx], text: e.target.value };
+                          setPlanHighlights(next);
+                        }}
+                        placeholder="e.g. About 6 hours of live interview help"
+                        className="w-full px-3 py-1.5 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                    </div>
 
-                <div className="flex justify-between gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    onClick={handleResetHighlights}
-                    disabled={highlightsLoading}
-                  >
-                    Reset to automatic
-                  </Button>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowHighlightsModal(false)}
+                    {/* Label input (optional) */}
+                    <div className="w-36 shrink-0">
+                      <input
+                        type="text"
+                        value={row.label}
+                        maxLength={64}
+                        disabled={highlightsLoading}
+                        onChange={(e) => {
+                          const next = [...planHighlights];
+                          next[idx] = { ...next[idx], label: e.target.value };
+                          setPlanHighlights(next);
+                        }}
+                        placeholder="Label (optional)"
+                        className="w-full px-2.5 py-1.5 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                    </div>
+
+                    {/* Remove button */}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPlanHighlights(planHighlights.filter((_, i) => i !== idx))
+                      }
+                      disabled={highlightsLoading}
+                      className="p-1.5 text-muted-foreground hover:text-destructive disabled:opacity-40 rounded hover:bg-muted shrink-0"
+                      title="Remove highlight"
                     >
-                      Cancel
-                    </Button>
-                    <Button onClick={handleSaveHighlights} disabled={highlightsLoading}>
-                      {highlightsLoading && (
-                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                      )}
-                      Save Highlights
-                    </Button>
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
-                </div>
-              </>
-            )}
+                ))
+              )}
+            </div>
+
+            {/* Add button & counter */}
+            <div className="flex items-center justify-between mb-4">
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-dashed"
+                disabled={planHighlights.length >= 5 || highlightsLoading}
+                onClick={() =>
+                  setPlanHighlights([
+                    ...planHighlights,
+                    { text: "", label: "" },
+                  ])
+                }
+              >
+                <Plus className="w-3.5 h-3.5 mr-1" /> Add highlight
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                {planHighlights.length} of 5 used
+              </span>
+            </div>
+
+            {/* Read-only credits/costs hint */}
+            <div className="flex items-start gap-2 p-2.5 rounded-md bg-muted/40 border border-border/50 text-xs text-muted-foreground mb-6">
+              <Info className="w-4 h-4 shrink-0 text-primary mt-0.5" />
+              <div className="leading-relaxed">
+                <span>
+                  This plan grants <strong>{selectedPlan.credits_granted ?? 0} credits</strong>
+                </span>
+                {billingCosts && billingCosts.length > 0 && (
+                  <span>
+                    {" "}·{" "}
+                    {billingCosts
+                      .filter((c: any) => c.is_active !== false)
+                      .map((c: any) => {
+                        const unitLabel = c.unit === "per_minute" ? "/min" : "";
+                        return `${c.name || c.code} ${c.credit_cost}${unitLabel}`;
+                      })
+                      .join(" · ")}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                disabled={highlightsLoading}
+                onClick={() => setShowHighlightsModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleSaveHighlights} disabled={highlightsLoading}>
+                {highlightsLoading && (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                )}
+                Save Highlights
+              </Button>
+            </div>
           </div>
         </div>
       )}

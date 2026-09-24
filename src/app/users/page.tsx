@@ -22,6 +22,7 @@ import {
   X,
   RefreshCw,
   History,
+  Trash2,
 } from "lucide-react";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { ConfirmAction } from "@/components/ConfirmAction";
@@ -51,6 +52,14 @@ export default function UsersPage() {
   const [grantReason, setGrantReason] = useState("");
   const [expiresInDays, setExpiresInDays] = useState<number | "">("");
   const [grantLoading, setGrantLoading] = useState(false);
+
+  // Delete User state (Superadmin)
+  const [deleteUserModalOpen, setDeleteUserModalOpen] = useState(false);
+  const [deleteTargetUser, setDeleteTargetUser] = useState<any>(null);
+  const [deleteUserReason, setDeleteUserReason] = useState("");
+  const [deleteUserEmailConfirm, setDeleteUserEmailConfirm] = useState("");
+  const [deleteUserLoading, setDeleteUserLoading] = useState(false);
+  const [deleteUserError, setDeleteUserError] = useState("");
 
   // ConfirmAction state
   const [confirmState, setConfirmState] = useState<{
@@ -210,6 +219,43 @@ export default function UsersPage() {
     }
   };
 
+  const requestDeleteUser = (user: any) => {
+    setDeleteTargetUser(user);
+    setDeleteUserReason("");
+    setDeleteUserEmailConfirm("");
+    setDeleteUserError("");
+    setDeleteUserModalOpen(true);
+  };
+
+  const handleDeleteUserSubmit = async () => {
+    if (!deleteTargetUser) return;
+    if (deleteUserEmailConfirm.trim() !== deleteTargetUser.email) {
+      setDeleteUserError("Email confirmation does not match");
+      return;
+    }
+    if (deleteUserReason.trim().length < 3) {
+      setDeleteUserError("Reason is required (minimum 3 characters)");
+      return;
+    }
+    setDeleteUserLoading(true);
+    setDeleteUserError("");
+    try {
+      const { getAccessToken } = await import("@/lib/auth");
+      const token = getAccessToken() || undefined;
+      await admin.deleteUser(deleteTargetUser.id, deleteUserReason.trim(), token);
+      setDeleteUserModalOpen(false);
+      setDeleteTargetUser(null);
+      toast.success("User deleted successfully");
+      fetchUsers(page, searchQuery, roleFilter, statusFilter);
+    } catch (err: any) {
+      console.error("Failed to delete user", err);
+      const detail = err.response?.data?.detail;
+      setDeleteUserError(typeof detail === "string" ? detail : "Failed to delete user");
+    } finally {
+      setDeleteUserLoading(false);
+    }
+  };
+
   const handleViewDetails = async (user: any) => {
     setSelectedUser(user);
     setShowDetailsModal(true);
@@ -273,14 +319,22 @@ export default function UsersPage() {
       header: "Status",
       render: (user) => (
         <div className="flex items-center gap-2">
-          <span
-            className={`w-2 h-2 rounded-full ${
-              user.is_active ? "bg-green-500" : "bg-destructive"
-            }`}
-          />
-          <span className="text-xs font-medium capitalize">
-            {user.is_active ? "Active" : "Inactive"}
-          </span>
+          {user.deleted_at ? (
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-destructive/10 text-destructive">
+              Deleted
+            </span>
+          ) : (
+            <>
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  user.is_active ? "bg-green-500" : "bg-destructive"
+                }`}
+              />
+              <span className="text-xs font-medium capitalize">
+                {user.is_active ? "Active" : "Inactive"}
+              </span>
+            </>
+          )}
         </div>
       ),
     },
@@ -308,72 +362,90 @@ export default function UsersPage() {
           >
             <Eye className="w-3.5 h-3.5" />
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 px-2 text-xs text-primary hover:text-primary"
-            onClick={() => {
-              setSelectedUser(user);
-              setShowGrantModal(true);
-            }}
-            title="Grant Credits"
-          >
-            <Coins className="w-3.5 h-3.5" />
-          </Button>
-          {user.role === "user" ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 px-2 text-xs"
-              onClick={() => requestUpdateRole(user, "admin")}
-              title="Promote to Admin"
-            >
-              <Shield className="w-3.5 h-3.5 mr-1" /> Make Admin
-            </Button>
-          ) : user.role === "admin" ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 px-2 text-xs"
-              onClick={() => requestUpdateRole(user, "user")}
-              title="Demote to User"
-              disabled={currentUser?.id === user.id}
-            >
-              Revoke Admin
-            </Button>
-          ) : null}
-
-          {user.is_active ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 px-2 text-xs text-destructive hover:bg-destructive/10"
-              onClick={() => requestUpdateStatus(user, "inactive")}
-              title="Deactivate Account"
-              disabled={currentUser?.id === user.id}
-            >
-              <UserX className="w-3.5 h-3.5" />
-            </Button>
-          ) : (
+          {!user.deleted_at && (
             <>
               <Button
                 variant="outline"
                 size="sm"
-                className="h-8 px-2 text-xs text-green-500 hover:bg-green-500/10"
-                onClick={() => requestUpdateStatus(user, "active")}
-                title="Activate Account"
+                className="h-8 px-2 text-xs text-primary hover:text-primary"
+                onClick={() => {
+                  setSelectedUser(user);
+                  setShowGrantModal(true);
+                }}
+                title="Grant Credits"
               >
-                <UserCheck className="w-3.5 h-3.5" />
+                <Coins className="w-3.5 h-3.5" />
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 px-2 text-xs text-orange-500 hover:bg-orange-500/10 ml-1"
-                onClick={() => requestReinstateUser(user)}
-                title="Reinstate (Clear Chargebacks)"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-              </Button>
+              {user.role === "user" ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-2 text-xs"
+                  onClick={() => requestUpdateRole(user, "admin")}
+                  title="Promote to Admin"
+                >
+                  <Shield className="w-3.5 h-3.5 mr-1" /> Make Admin
+                </Button>
+              ) : user.role === "admin" ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-2 text-xs"
+                  onClick={() => requestUpdateRole(user, "user")}
+                  title="Demote to User"
+                  disabled={currentUser?.id === user.id}
+                >
+                  Revoke Admin
+                </Button>
+              ) : null}
+
+              {user.is_active ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-2 text-xs text-destructive hover:bg-destructive/10"
+                  onClick={() => requestUpdateStatus(user, "inactive")}
+                  title="Deactivate Account"
+                  disabled={currentUser?.id === user.id}
+                >
+                  <UserX className="w-3.5 h-3.5" />
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-2 text-xs text-green-500 hover:bg-green-500/10"
+                    onClick={() => requestUpdateStatus(user, "active")}
+                    title="Activate Account"
+                  >
+                    <UserCheck className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-2 text-xs text-orange-500 hover:bg-orange-500/10 ml-1"
+                    onClick={() => requestReinstateUser(user)}
+                    title="Reinstate (Clear Chargebacks)"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                  </Button>
+                </>
+              )}
+
+              {currentUser?.role === "superadmin" &&
+                currentUser?.id !== user.id &&
+                user.role === "user" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    onClick={() => requestDeleteUser(user)}
+                    title="Delete User (Superadmin)"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                )}
             </>
           )}
           {(user.role === "admin" || user.role === "superadmin") && (
@@ -739,6 +811,106 @@ export default function UsersPage() {
         onClose={() => setConfirmState((prev) => ({ ...prev, isOpen: false }))}
         onConfirm={confirmState.action}
       />
+
+      {/* Delete User Modal (Superadmin) */}
+      {deleteUserModalOpen && deleteTargetUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-card w-full max-w-lg p-6 rounded-lg shadow-lg border border-destructive/30 relative">
+            <button
+              onClick={() => {
+                if (!deleteUserLoading) setDeleteUserModalOpen(false);
+              }}
+              disabled={deleteUserLoading}
+              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground disabled:opacity-40"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center bg-destructive/10 text-destructive shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-foreground">
+                  Delete User
+                </h2>
+                <p className="text-xs text-destructive font-medium">
+                  Irreversible superadmin action
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+              This permanently deletes all user creations (resumes, interviews, reports, cover letters) and scrubs their personal information. Payment records are kept de-identified for 7 years.
+            </p>
+
+            {deleteUserError && (
+              <div className="mb-4 p-3 rounded-md bg-destructive/10 border border-destructive/30 text-destructive text-xs">
+                {deleteUserError}
+              </div>
+            )}
+
+            <div className="space-y-4 mb-6">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-foreground">
+                  Type <span className="font-mono text-destructive">{deleteTargetUser.email}</span> to confirm:
+                </label>
+                <input
+                  type="text"
+                  value={deleteUserEmailConfirm}
+                  onChange={(e) => setDeleteUserEmailConfirm(e.target.value)}
+                  placeholder={deleteTargetUser.email}
+                  disabled={deleteUserLoading}
+                  className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-destructive"
+                  autoFocus
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-foreground">
+                  Reason for deletion <span className="text-destructive">*</span> (3–500 chars):
+                </label>
+                <textarea
+                  value={deleteUserReason}
+                  onChange={(e) => setDeleteUserReason(e.target.value)}
+                  placeholder="e.g. User requested account erasure via support email on 24 Sep"
+                  maxLength={500}
+                  rows={3}
+                  disabled={deleteUserLoading}
+                  className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-destructive resize-none"
+                />
+                <div className="text-[10px] text-muted-foreground text-right">
+                  {deleteUserReason.length} / 500
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                disabled={deleteUserLoading}
+                onClick={() => setDeleteUserModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={
+                  deleteUserLoading ||
+                  deleteUserEmailConfirm.trim() !== deleteTargetUser.email ||
+                  deleteUserReason.trim().length < 3
+                }
+                onClick={handleDeleteUserSubmit}
+              >
+                {deleteUserLoading && (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                )}
+                Permanently Delete User
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

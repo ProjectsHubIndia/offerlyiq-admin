@@ -11,6 +11,8 @@ export interface User {
   is_active: boolean;
   is_verified: boolean;
   role?: string;
+  deleted_at?: string | null;
+  paddle_customer_id?: string | null;
   created_at: string;
   updated_at: string;
 }

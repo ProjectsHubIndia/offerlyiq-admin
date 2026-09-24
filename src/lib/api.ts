@@ -106,6 +106,13 @@ export const admin = {
     axiosMain
       .post(`/admin/billing/users/${id}/reinstate`, { reason }, authConfig(token))
       .then((r) => r.data),
+  deleteUser: (id: string, reason: string, token?: string) =>
+    axiosMain
+      .delete(`/admin/users/${id}`, {
+        ...authConfig(token),
+        data: { reason },
+      })
+      .then((r) => r.data),
 
   // Plans
   getPlans: (token?: string) =>
@@ -115,6 +122,10 @@ export const admin = {
   updatePlan: (id: string, data: any, token?: string) =>
     axiosMain
       .patch(`/admin/plans/${id}`, data, authConfig(token))
+      .then((r) => r.data),
+  deletePlan: (id: string, token?: string) =>
+    axiosMain
+      .delete(`/admin/plans/${id}`, authConfig(token))
       .then((r) => r.data),
   updatePlanPrices: (id: string, data: any, token?: string) =>
     axiosMain
