@@ -77,6 +77,7 @@ export default function UsersPage() {
   });
 
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [userDetails, setUserDetails] = useState<any>(null);
   const [userLedger, setUserLedger] = useState<any[]>([]);
   const [userTransactions, setUserTransactions] = useState<any[]>([]);
   const [userMargin, setUserMargin] = useState<any>(null);
@@ -260,22 +261,27 @@ export default function UsersPage() {
     setSelectedUser(user);
     setShowDetailsModal(true);
     setDetailsLoading(true);
+    setUserDetails(null);
     try {
       const { getAccessToken } = await import("@/lib/auth");
       const token = getAccessToken() || undefined;
       const results = await Promise.allSettled([
+        admin.getUserDetail(user.id, token),
         admin.getUserLedger(user.id, token),
         admin.getUserTransactions(user.id, token),
         admin.userMargin(user.id, token),
       ]);
-      setUserLedger(
-        results[0].status === "fulfilled" ? results[0].value || [] : [],
+      setUserDetails(
+        results[0].status === "fulfilled" ? results[0].value : null,
       );
-      setUserTransactions(
+      setUserLedger(
         results[1].status === "fulfilled" ? results[1].value || [] : [],
       );
+      setUserTransactions(
+        results[2].status === "fulfilled" ? results[2].value || [] : [],
+      );
       setUserMargin(
-        results[2].status === "fulfilled" ? results[2].value : null,
+        results[3].status === "fulfilled" ? results[3].value : null,
       );
     } catch (err) {
       console.error("Failed to fetch user details", err);
@@ -661,6 +667,52 @@ export default function UsersPage() {
                 </div>
               ) : (
                 <>
+                  {userDetails && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 border border-border rounded-lg p-4 bg-muted/20">
+                      <div>
+                        <p className="text-xs text-muted-foreground font-medium">Current Balance</p>
+                        <p className="text-xl font-bold text-foreground mt-0.5">
+                          {userDetails.balance ?? 0} <span className="text-xs font-normal text-muted-foreground">credits</span>
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground font-medium">Lifetime Granted</p>
+                        <p className="text-xl font-bold text-green-500 mt-0.5">
+                          +{userDetails.lifetime_granted ?? 0}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground font-medium">Lifetime Spent</p>
+                        <p className="text-xl font-bold text-muted-foreground mt-0.5">
+                          -{userDetails.lifetime_spent ?? 0}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground font-medium">Status & Role</p>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${userDetails.status === "active" ? "bg-green-500/10 text-green-500" : "bg-destructive/10 text-destructive"}`}>
+                            {userDetails.status}
+                          </span>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-muted text-muted-foreground uppercase">
+                            {userDetails.role}
+                          </span>
+                        </div>
+                      </div>
+                      {userDetails.features && userDetails.features.length > 0 && (
+                        <div className="col-span-full pt-2 border-t border-border/50">
+                          <p className="text-xs text-muted-foreground font-medium mb-1.5">Effective Feature Flags:</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {userDetails.features.map((feat: string, idx: number) => (
+                              <span key={idx} className="px-2 py-0.5 rounded-md text-[11px] bg-primary/10 text-primary font-mono">
+                                {feat}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {userMargin && (
                     <div className="grid grid-cols-3 gap-4 border border-border rounded-lg p-4 bg-muted/20">
                       <div>

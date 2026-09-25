@@ -1,8 +1,7 @@
 import axios, { type AxiosRequestConfig } from "axios";
 import { getRefreshToken, setTokens, clearTokens } from "@/lib/auth";
 
-export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "/api/v1";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const axiosMain = axios.create({
   baseURL: API_URL,
@@ -31,8 +30,8 @@ export class InsufficientCreditsError extends ApiError {
   }
 }
 
-export const isInsufficientCreditsError = (err: any): err is InsufficientCreditsError => 
-  err?.isInsufficientCredits === true;
+export const isInsufficientCreditsError = (err: unknown): err is InsufficientCreditsError => 
+  typeof err === "object" && err !== null && (err as { isInsufficientCredits?: boolean }).isInsufficientCredits === true;
 
 type RetryableConfig = AxiosRequestConfig & { _retried?: boolean };
 
@@ -73,7 +72,7 @@ axiosMain.interceptors.response.use(
         try {
           const text = await responseData.text();
           responseData = JSON.parse(text);
-        } catch (e) {
+        } catch {
           // fallback if not JSON
         }
       }

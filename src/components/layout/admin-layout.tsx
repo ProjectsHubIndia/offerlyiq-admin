@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   LayoutDashboard,
   Users,
@@ -16,7 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { LogoSplit } from "@/components/ui/logo";
-import { isAuthenticated } from "@/lib/auth";
+import { useAdminSession } from "@/components/layout/admin-session-provider";
 
 const navItems = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
@@ -32,12 +32,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  let sessionContext = null;
-  try {
-    sessionContext = require("@/components/layout/admin-session-provider").useAdminSession();
-  } catch (e) {
-    // If not within provider (like during some initial renders), handle gracefully
-  }
+  const session = useAdminSession();
+  const user = session?.user;
 
   const handleLogout = async () => {
     try {
@@ -110,16 +106,16 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           </nav>
 
           <div className="pt-4 border-t border-border mt-auto">
-            {sessionContext?.user && (
+            {user && (
               <div className="mb-4 px-3 flex flex-col gap-1 overflow-hidden">
-                <span className="text-sm font-medium truncate" title={sessionContext.user.email}>
-                  {sessionContext.user.email}
+                <span className="text-sm font-medium truncate" title={user.email}>
+                  {user.email}
                 </span>
                 <div>
                   <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${
-                    sessionContext.user.role === 'superadmin' ? 'bg-purple-500/20 text-purple-600' : 'bg-blue-500/20 text-blue-600'
+                    user.role === 'superadmin' ? 'bg-purple-500/20 text-purple-600' : 'bg-blue-500/20 text-blue-600'
                   }`}>
-                    {sessionContext.user.role}
+                    {user.role}
                   </span>
                 </div>
               </div>

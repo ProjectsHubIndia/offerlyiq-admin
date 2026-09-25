@@ -28,14 +28,20 @@ export function AdminSessionProvider({ children }: { children: React.ReactNode }
   const pathname = usePathname();
 
   useEffect(() => {
+    let isMounted = true;
+
     if (pathname === "/login") {
-      setIsLoading(false);
+      Promise.resolve().then(() => {
+        if (isMounted) setIsLoading(false);
+      });
       return;
     }
 
     if (!isAuthenticated()) {
       router.replace("/login");
-      setIsLoading(false);
+      Promise.resolve().then(() => {
+        if (isMounted) setIsLoading(false);
+      });
       return;
     }
 
@@ -46,28 +52,30 @@ export function AdminSessionProvider({ children }: { children: React.ReactNode }
         const token = getAccessToken();
         if (!token) throw new Error("No token");
         
-        const user = await getCurrentUser(token);
+        const userData = await getCurrentUser(token);
         
-        if (!isAdmin(user.role as Role)) {
+        if (!isAdmin(userData.role as Role)) {
           clearTokens();
           toast.error("This account is not an administrator.");
           router.replace("/login");
           return;
         }
 
-        setUser(user as User);
-      } catch (err: any) {
+        if (isMounted) setUser(userData as User);
+      } catch (err: unknown) {
         console.error("Failed to fetch user session", err);
-        if (err?.status === 401 || err?.response?.status === 401) {
-          clearTokens();
-          router.replace("/login");
-        }
+        clearTokens();
+        router.replace("/login");
       } finally {
-        setIsLoading(false);
+        if (isMounted) setIsLoading(false);
       }
     }
 
     fetchUser();
+
+    return () => {
+      isMounted = false;
+    };
   }, [pathname, router]);
 
   if (isLoading) {

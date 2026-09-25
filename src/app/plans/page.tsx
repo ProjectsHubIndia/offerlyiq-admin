@@ -31,6 +31,7 @@ import {
 import { ConfirmAction } from "@/components/ConfirmAction";
 import { toast } from "sonner";
 import { useAdminSession } from "@/components/layout/admin-session-provider";
+import { getApiErrorDetail, getApiErrorStatus } from "@/lib/utils";
 
 const SUPPORTED_CURRENCIES = [
   "ARS","AUD","BRL","CAD","CHF","CNY","COP","CZK","DKK","EUR",
@@ -165,11 +166,19 @@ export default function PlansPage() {
           "New users will not be able to purchase this plan. Existing subscriptions continue.",
         isDanger: true,
         action: async (reason: string) => {
-          const { getAccessToken } = await import("@/lib/auth");
-          const token = getAccessToken() || undefined;
-          await admin.unpublishPlan(plan.id, token);
-          setConfirmState((prev) => ({ ...prev, isOpen: false }));
-          fetchPlans();
+          try {
+            const { getAccessToken } = await import("@/lib/auth");
+            const token = getAccessToken() || undefined;
+            await admin.unpublishPlan(plan.id, token);
+            setConfirmState((prev) => ({ ...prev, isOpen: false }));
+            toast.success("Plan unpublished successfully");
+            fetchPlans();
+          } catch (err: any) {
+            console.error("Failed to unpublish plan", err);
+            const detail = getApiErrorDetail(err);
+            toast.error(detail || "Failed to unpublish plan");
+            throw err;
+          }
         },
       });
     } else {
@@ -179,11 +188,19 @@ export default function PlansPage() {
         consequence: "This plan will become visible for users to purchase.",
         isDanger: false,
         action: async (reason: string) => {
-          const { getAccessToken } = await import("@/lib/auth");
-          const token = getAccessToken() || undefined;
-          await admin.publishPlan(plan.id, token);
-          setConfirmState((prev) => ({ ...prev, isOpen: false }));
-          fetchPlans();
+          try {
+            const { getAccessToken } = await import("@/lib/auth");
+            const token = getAccessToken() || undefined;
+            await admin.publishPlan(plan.id, token);
+            setConfirmState((prev) => ({ ...prev, isOpen: false }));
+            toast.success("Plan published successfully");
+            fetchPlans();
+          } catch (err: any) {
+            console.error("Failed to publish plan", err);
+            const detail = getApiErrorDetail(err);
+            toast.error(detail || "Failed to publish plan");
+            throw err;
+          }
         },
       });
     }
@@ -206,7 +223,9 @@ export default function PlansPage() {
           fetchPlans();
         } catch (err: any) {
           console.error("Failed to archive plan", err);
-          toast.error(err.response?.data?.detail || "Failed to archive plan");
+          const detail = getApiErrorDetail(err);
+          toast.error(detail || "Failed to archive plan");
+          throw err;
         }
       },
     });
@@ -228,9 +247,10 @@ export default function PlansPage() {
           fetchPlans();
         } catch (err: any) {
           console.error("Failed to delete plan", err);
-          const detail = err.response?.data?.detail;
-          if (err.response?.status === 409) {
-            if (typeof detail === "string" && detail.includes("sold")) {
+          const detail = getApiErrorDetail(err);
+          const status = getApiErrorStatus(err);
+          if (status === 409) {
+            if (detail.toLowerCase().includes("sold") || detail.toLowerCase().includes("purchased")) {
               toast.error(
                 "This plan has been sold and cannot be deleted. You can archive it instead.",
                 {
@@ -242,11 +262,12 @@ export default function PlansPage() {
                 },
               );
             } else {
-              toast.error(typeof detail === "string" ? detail : "Plan cannot be deleted");
+              toast.error(detail);
             }
           } else {
-            toast.error(typeof detail === "string" ? detail : "Failed to delete plan");
+            toast.error(detail);
           }
+          throw err;
         }
       },
     });
@@ -410,7 +431,7 @@ export default function PlansPage() {
       fetchPlans();
     } catch (err) {
       console.error("Failed to update features", err);
-      toast.error("Failed to update features");
+      toast.error(getApiErrorDetail(err) || "Failed to update features");
     } finally {
       setFeaturesLoading(false);
     }
@@ -485,8 +506,8 @@ export default function PlansPage() {
       toast.success("Highlights saved");
     } catch (err: any) {
       console.error("Failed to update highlights", err);
-      const msg = err?.response?.data?.detail || "Failed to save highlights";
-      toast.error(typeof msg === "string" ? msg : JSON.stringify(msg));
+      const msg = getApiErrorDetail(err);
+      toast.error(msg || "Failed to save highlights");
     } finally {
       setHighlightsLoading(false);
     }
@@ -534,7 +555,7 @@ export default function PlansPage() {
       fetchPlans();
     } catch (err) {
       console.error("Failed to create plan", err);
-      toast.error("Failed to create plan");
+      toast.error(getApiErrorDetail(err) || "Failed to create plan");
     } finally {
       setCreatePlanLoading(false);
     }
@@ -572,7 +593,7 @@ export default function PlansPage() {
       fetchPlans();
     } catch (err) {
       console.error("Failed to update plan", err);
-      toast.error("Failed to update plan");
+      toast.error(getApiErrorDetail(err) || "Failed to update plan");
     } finally {
       setEditPlanLoading(false);
     }

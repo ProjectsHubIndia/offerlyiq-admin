@@ -79,6 +79,10 @@ export const admin = {
     axiosMain
       .patch(`/admin/users/${id}/role`, { role, reason }, authConfig(token))
       .then((r) => r.data),
+  getUserDetail: (id: string, token?: string) =>
+    axiosMain
+      .get(`/admin/users/${id}`, authConfig(token))
+      .then((r) => r.data),
   getUserLedger: (id: string, token?: string) =>
     axiosMain
       .get(`/admin/users/${id}/ledger`, authConfig(token))
@@ -117,9 +121,9 @@ export const admin = {
   // Plans
   getPlans: (token?: string) =>
     axiosMain.get("/admin/plans", authConfig(token)).then((r) => r.data),
-  createPlan: (data: any, token?: string) =>
+  createPlan: (data: Record<string, unknown>, token?: string) =>
     axiosMain.post("/admin/plans", data, authConfig(token)).then((r) => r.data),
-  updatePlan: (id: string, data: any, token?: string) =>
+  updatePlan: (id: string, data: Record<string, unknown>, token?: string) =>
     axiosMain
       .patch(`/admin/plans/${id}`, data, authConfig(token))
       .then((r) => r.data),
@@ -127,11 +131,11 @@ export const admin = {
     axiosMain
       .delete(`/admin/plans/${id}`, authConfig(token))
       .then((r) => r.data),
-  updatePlanPrices: (id: string, data: any, token?: string) =>
+  updatePlanPrices: (id: string, data: Record<string, unknown>, token?: string) =>
     axiosMain
       .put(`/admin/plans/${id}/prices`, data, authConfig(token))
       .then((r) => r.data),
-  updatePlanFeatures: (id: string, data: any, token?: string) =>
+  updatePlanFeatures: (id: string, data: Record<string, unknown>, token?: string) =>
     axiosMain
       .put(`/admin/plans/${id}/features`, data, authConfig(token))
       .then((r) => r.data),
@@ -147,7 +151,7 @@ export const admin = {
     axiosMain
       .post(`/admin/plans/${id}/archive`, undefined, authConfig(token))
       .then((r) => r.data),
-  updatePlanHighlights: (id: string, data: any[], token?: string) =>
+  updatePlanHighlights: (id: string, data: unknown[], token?: string) =>
     axiosMain
       .put(`/admin/plans/${id}/highlights`, data, authConfig(token))
       .then((r) => r.data),
@@ -157,7 +161,7 @@ export const admin = {
   // Catalog
   getModules: (token?: string) =>
     axiosMain.get("/admin/modules", authConfig(token)).then((r) => r.data),
-  patchModule: (code: string, data: any, token?: string) =>
+  patchModule: (code: string, data: Record<string, unknown>, token?: string) =>
     axiosMain
       .patch(`/admin/modules/${code}`, data, authConfig(token))
       .then((r) => r.data),
@@ -165,7 +169,7 @@ export const admin = {
     axiosMain.get("/admin/features", authConfig(token)).then((r) => r.data),
   getSettings: (token?: string) =>
     axiosMain.get("/admin/settings", authConfig(token)).then((r) => r.data),
-  patchSetting: (key: string, data: any, token?: string) =>
+  patchSetting: (key: string, data: Record<string, unknown>, token?: string) =>
     axiosMain
       .patch(`/admin/settings/${key}`, data, authConfig(token))
       .then((r) => r.data),
@@ -173,11 +177,11 @@ export const admin = {
   // Discounts
   getDiscounts: (token?: string) =>
     axiosMain.get("/admin/discounts", authConfig(token)).then((r) => r.data),
-  createDiscount: (data: any, token?: string) =>
+  createDiscount: (data: Record<string, unknown>, token?: string) =>
     axiosMain
       .post("/admin/discounts", data, authConfig(token))
       .then((r) => r.data),
-  updateDiscount: (id: string, data: any, token?: string) =>
+  updateDiscount: (id: string, data: Record<string, unknown>, token?: string) =>
     axiosMain
       .patch(`/admin/discounts/${id}`, data, authConfig(token))
       .then((r) => r.data),
@@ -188,7 +192,7 @@ export const admin = {
 
   // Billing Ops
   getWebhooks: (token?: string, page = 1, size = 10, filters?: { status?: string, eventType?: string, since?: string, until?: string }) => {
-    const params: any = { page, size };
+    const params: Record<string, unknown> = { page, size };
     if (filters?.status && filters.status !== "all") params.status = filters.status;
     if (filters?.eventType && filters.eventType !== "all") params.event_type = filters.eventType;
     if (filters?.since) params.since = filters.since;

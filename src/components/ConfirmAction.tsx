@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { AlertTriangle, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getApiErrorDetail } from "@/lib/utils";
 
 interface ConfirmActionProps {
   isOpen: boolean;
@@ -35,8 +36,8 @@ export function ConfirmAction({
     try {
       await onConfirm(reason.trim());
       setReason(""); // clear on success
-    } catch (err: any) {
-      setError(err?.message || "Action failed");
+    } catch (err: unknown) {
+      setError(getApiErrorDetail(err));
     } finally {
       setIsSubmitting(false);
     }
