@@ -29,17 +29,17 @@ const SOURCE_BYTE: Record<TranscriptSource, number> = {
 
 const TARGET_SAMPLE_RATE = 16000;
 
-function toWsBase(apiUrl: string): string {
-  if (apiUrl.startsWith("/")) {
+function toWsBase(apiUrl: string = ""): string {
+  if (!apiUrl || apiUrl.startsWith("/")) {
     // Relative URL — build absolute WS URL from current window origin
     const origin = typeof window !== "undefined" ? window.location.origin : "";
-    return origin.replace(/^http/, "ws") + apiUrl;
+    return origin.replace(/^http/, "ws") + (apiUrl || "");
   }
   return apiUrl.replace(/^http/, "ws");
 }
 
 export function getInterviewWsUrl(
-  apiUrl: string,
+  apiUrl: string = "",
   sessionId: string,
   token: string,
 ): string {

@@ -131,11 +131,11 @@ export const admin = {
     axiosMain
       .delete(`/admin/plans/${id}`, authConfig(token))
       .then((r) => r.data),
-  updatePlanPrices: (id: string, data: Record<string, unknown>, token?: string) =>
+  updatePlanPrices: (id: string, data: unknown, token?: string) =>
     axiosMain
       .put(`/admin/plans/${id}/prices`, data, authConfig(token))
       .then((r) => r.data),
-  updatePlanFeatures: (id: string, data: Record<string, unknown>, token?: string) =>
+  updatePlanFeatures: (id: string, data: unknown, token?: string) =>
     axiosMain
       .put(`/admin/plans/${id}/features`, data, authConfig(token))
       .then((r) => r.data),

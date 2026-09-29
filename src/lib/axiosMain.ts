@@ -1,7 +1,7 @@
 import axios, { type AxiosRequestConfig } from "axios";
 import { getRefreshToken, setTokens, clearTokens } from "@/lib/auth";
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL;
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 const axiosMain = axios.create({
   baseURL: API_URL,
