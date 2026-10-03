@@ -91,6 +91,22 @@ function targetPageLink(type: string, _id: string): string | null {
   return null;
 }
 
+export interface AuditEntry {
+  id: string;
+  action: string;
+  actor_user_id?: string | null;
+  actor_email?: string | null;
+  target_type: string;
+  target_id: string;
+  target_label?: string | null;
+  summary?: string | null;
+  before?: any;
+  after?: any;
+  reason?: string | null;
+  ip?: string | null;
+  created_at: string;
+}
+
 function AuditContent() {
   const router = useRouter();
   const pathname = usePathname();
@@ -104,13 +120,13 @@ function AuditContent() {
   const until = searchParams.get("until") ?? "";
   const page = Math.max(1, Number(searchParams.get("page") ?? "1"));
 
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<AuditEntry[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [auditActions, setAuditActions] = useState<string[]>([]);
   const [adminUsers, setAdminUsers] = useState<any[]>([]);
-  const [selectedRow, setSelectedRow] = useState<any>(null);
+  const [selectedRow, setSelectedRow] = useState<AuditEntry | null>(null);
 
   const setFilter = useCallback(
     (overrides: Record<string, string | undefined>) => {
@@ -393,7 +409,7 @@ function AuditContent() {
                             onClick={(e) => {
                               e.stopPropagation();
                               setFilter({
-                                actor_user_id: row.actor_user_id,
+                                actor_user_id: row.actor_user_id ?? undefined,
                               });
                             }}
                           >
@@ -405,10 +421,19 @@ function AuditContent() {
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-sm whitespace-nowrap">
-                        <span className="px-2 py-0.5 bg-primary/10 text-primary rounded text-xs font-medium">
-                          {actionLabel(row.action)}
-                        </span>
+                      <td className="px-4 py-3 text-sm">
+                        <div className="font-medium">
+                          {row.summary ?? (
+                            <span className="px-2 py-0.5 bg-primary/10 text-primary rounded text-xs font-medium">
+                              {actionLabel(row.action)}
+                            </span>
+                          )}
+                        </div>
+                        {!row.summary && row.target_label && (
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            {row.target_label}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-sm whitespace-nowrap">
                         {link ? (
@@ -416,13 +441,19 @@ function AuditContent() {
                             href={link}
                             className="text-primary hover:underline"
                             onClick={(e) => e.stopPropagation()}
+                            title={`ID: ${row.target_id}`}
                           >
-                            {targetLabel}
+                            {row.target_label ?? targetLabel}
                           </a>
                         ) : (
-                          <span className="text-muted-foreground">
-                            {targetLabel}
+                          <span className="text-muted-foreground" title={`ID: ${row.target_id}`}>
+                            {row.target_label ?? targetLabel}
                           </span>
+                        )}
+                        {row.target_label && (
+                          <div className="text-[11px] text-muted-foreground/70">
+                            {targetLabel}
+                          </div>
                         )}
                       </td>
                       <td
@@ -487,10 +518,11 @@ function AuditContent() {
             <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
               <div>
                 <h2 className="text-lg font-semibold">
-                  {actionLabel(selectedRow.action)}
+                  {selectedRow.summary ?? actionLabel(selectedRow.action)}
                 </h2>
                 <p className="text-xs text-muted-foreground font-mono mt-0.5">
                   {selectedRow.action}
+                  {selectedRow.target_label ? ` · ${selectedRow.target_label}` : ""}
                 </p>
               </div>
               <button
@@ -529,6 +561,26 @@ function AuditContent() {
                       selectedRow.target_type}
                   </div>
                 </div>
+                {selectedRow.target_label && (
+                  <div>
+                    <div className="text-xs text-muted-foreground uppercase font-medium mb-1">
+                      Target Label
+                    </div>
+                    <div className="font-medium text-foreground">
+                      {selectedRow.target_label}
+                    </div>
+                  </div>
+                )}
+                {selectedRow.summary && (
+                  <div className="col-span-2">
+                    <div className="text-xs text-muted-foreground uppercase font-medium mb-1">
+                      Summary
+                    </div>
+                    <div className="font-medium text-foreground">
+                      {selectedRow.summary}
+                    </div>
+                  </div>
+                )}
                 <div>
                   <div className="text-xs text-muted-foreground uppercase font-medium mb-1">
                     IP
