@@ -74,8 +74,18 @@ export default function AdminDashboard() {
 
         // Format revenue data for Recharts (convert cents to dollars, period to date)
         const baseCurrency = overviewRes?.revenue_currency || "USD";
-        const formattedRevenue = (revenueRes || [])
-          .filter((item: any) => item.currency_code === baseCurrency)
+        const allRevenue = revenueRes || [];
+        let filtered = allRevenue.filter(
+          (item: any) => item.currency_code === baseCurrency,
+        );
+        // Fallback: if the configured base currency has no transactions, show the
+        // dominant currency that actually has data instead of an empty chart.
+        if (filtered.length === 0 && allRevenue.length > 0) {
+          filtered = allRevenue.filter(
+            (item: any) => item.currency_code === allRevenue[0].currency_code,
+          );
+        }
+        const formattedRevenue = filtered
           .map((item: any) => {
             let shortDate = item.period;
             try {
@@ -96,7 +106,7 @@ export default function AdminDashboard() {
               fullDate: item.period,
             };
           });
-        setRevenueData(formattedRevenue);
+        setRevenueData(formattedRevenue ?? []);
 
         let totalGranted = 0,
           totalSpent = 0,
