@@ -4,8 +4,10 @@ import { Suspense, useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { admin } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Loader2, X } from "lucide-react";
 import { toast } from "sonner";
+import { UserProfileModal } from "@/components/UserProfileModal";
 
 const ACTION_LABELS: Record<string, string> = {
   "user.status": "Changed status",
@@ -99,6 +101,7 @@ export interface AuditEntry {
   target_type: string;
   target_id: string;
   target_label?: string | null;
+  target_plan?: string | null;
   summary?: string | null;
   before?: any;
   after?: any;
@@ -127,6 +130,7 @@ function AuditContent() {
   const [auditActions, setAuditActions] = useState<string[]>([]);
   const [adminUsers, setAdminUsers] = useState<any[]>([]);
   const [selectedRow, setSelectedRow] = useState<AuditEntry | null>(null);
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
 
   const setFilter = useCallback(
     (overrides: Record<string, string | undefined>) => {
@@ -408,9 +412,7 @@ function AuditContent() {
                             className="text-primary hover:underline text-left"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setFilter({
-                                actor_user_id: row.actor_user_id ?? undefined,
-                              });
+                              if (row.actor_user_id) setProfileUserId(row.actor_user_id);
                             }}
                           >
                             {row.actor_email}
@@ -436,20 +438,35 @@ function AuditContent() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm whitespace-nowrap">
-                        {link ? (
-                          <a
-                            href={link}
-                            className="text-primary hover:underline"
-                            onClick={(e) => e.stopPropagation()}
-                            title={`ID: ${row.target_id}`}
-                          >
-                            {row.target_label ?? targetLabel}
-                          </a>
-                        ) : (
-                          <span className="text-muted-foreground" title={`ID: ${row.target_id}`}>
-                            {row.target_label ?? targetLabel}
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1.5">
+                          {row.target_type === "user" ? (
+                            <button
+                              className="text-primary hover:underline text-left"
+                              onClick={(e) => { e.stopPropagation(); setProfileUserId(row.target_id); }}
+                              title={`ID: ${row.target_id}`}
+                            >
+                              {row.target_label ?? targetLabel}
+                            </button>
+                          ) : link ? (
+                            <a
+                              href={link}
+                              className="text-primary hover:underline"
+                              onClick={(e) => e.stopPropagation()}
+                              title={`ID: ${row.target_id}`}
+                            >
+                              {row.target_label ?? targetLabel}
+                            </a>
+                          ) : (
+                            <span className="text-muted-foreground" title={`ID: ${row.target_id}`}>
+                              {row.target_label ?? targetLabel}
+                            </span>
+                          )}
+                          {row.target_type === "user" && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                              {row.target_plan ?? "Free"}
+                            </Badge>
+                          )}
+                        </div>
                         {row.target_label && (
                           <div className="text-[11px] text-muted-foreground/70">
                             {targetLabel}
@@ -506,6 +523,8 @@ function AuditContent() {
           )}
         </>
       )}
+
+      <UserProfileModal userId={profileUserId} onClose={() => setProfileUserId(null)} />
 
       {/* Detail drawer */}
       {selectedRow && (
@@ -566,8 +585,22 @@ function AuditContent() {
                     <div className="text-xs text-muted-foreground uppercase font-medium mb-1">
                       Target Label
                     </div>
-                    <div className="font-medium text-foreground">
-                      {selectedRow.target_label}
+                    <div className="flex items-center gap-2">
+                      {selectedRow.target_type === "user" ? (
+                        <button
+                          className="font-medium text-primary hover:underline text-left"
+                          onClick={() => setProfileUserId(selectedRow.target_id)}
+                        >
+                          {selectedRow.target_label}
+                        </button>
+                      ) : (
+                        <span className="font-medium text-foreground">{selectedRow.target_label}</span>
+                      )}
+                      {selectedRow.target_type === "user" && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                          {selectedRow.target_plan ?? "Free"}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 )}

@@ -212,20 +212,49 @@ export const admin = {
     axiosMain
       .post(`/admin/billing/webhooks/${id}/replay`, {}, authConfig(token))
       .then((r) => r.data),
-  getTransactions: (token?: string, page = 1, size = 10) =>
+  getTransactions: (
+    token?: string,
+    page = 1,
+    size = 10,
+    filters?: {
+      q?: string;
+      status?: string;
+      plan?: string;
+      currency?: string;
+      since?: string;
+      until?: string;
+    },
+  ) => {
+    const params: Record<string, string | number> = { page, size };
+    Object.entries(filters ?? {}).forEach(([key, value]) => {
+      if (value && value !== "all") params[key] = value;
+    });
+    return axiosMain
+      .get("/admin/billing/transactions", { ...authConfig(token), params })
+      .then((r) => r.data);
+  },
+  getTransactionFilters: (token?: string) =>
     axiosMain
-      .get("/admin/billing/transactions", {
-        ...authConfig(token),
-        params: { page, size },
-      })
+      .get("/admin/billing/transactions/filters", authConfig(token))
       .then((r) => r.data),
-  getChargebacks: (token?: string, page = 1, size = 10) =>
-    axiosMain
-      .get("/admin/billing/chargebacks", {
-        ...authConfig(token),
-        params: { page, size },
-      })
-      .then((r) => r.data),
+  getChargebacks: (
+    token?: string,
+    page = 1,
+    size = 10,
+    filters?: {
+      q?: string;
+      since?: string;
+      until?: string;
+    },
+  ) => {
+    const params: Record<string, string | number> = { page, size };
+    Object.entries(filters ?? {}).forEach(([key, value]) => {
+      if (value && value !== "all") params[key] = value;
+    });
+    return axiosMain
+      .get("/admin/billing/chargebacks", { ...authConfig(token), params })
+      .then((r) => r.data);
+  },
   refundTransaction: (id: string, reason: string, token?: string) =>
     axiosMain
       .post(
@@ -267,4 +296,14 @@ export const admin = {
     axiosMain.get("/admin/audit", { ...authConfig(token), params }).then((r) => r.data),
   getAuditActions: (token?: string) =>
     axiosMain.get("/admin/audit/actions", authConfig(token)).then((r) => r.data),
+
+  // Support tickets
+  getTickets: (token?: string, params?: { status?: string; category?: string; q?: string; user_id?: string; page?: number; size?: number }) =>
+    axiosMain.get("/admin/tickets", { ...authConfig(token), params }).then((r) => r.data),
+  getTicketsSummary: (token?: string) =>
+    axiosMain.get("/admin/tickets/summary", authConfig(token)).then((r) => r.data),
+  getTicket: (id: string, token?: string) =>
+    axiosMain.get(`/admin/tickets/${id}`, authConfig(token)).then((r) => r.data),
+  updateTicket: (id: string, data: { status?: string; admin_note?: string | null }, token?: string) =>
+    axiosMain.patch(`/admin/tickets/${id}`, data, authConfig(token)).then((r) => r.data),
 };

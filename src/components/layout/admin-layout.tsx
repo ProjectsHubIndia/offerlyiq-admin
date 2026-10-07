@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   Users,
@@ -11,6 +11,7 @@ import {
   Settings,
   CreditCard,
   ClipboardList,
+  MessageSquare,
   LogOut,
   Menu,
   X,
@@ -26,14 +27,34 @@ const navItems = [
   { href: "/discounts", label: "Discounts", icon: Tags },
   { href: "/billing", label: "Billing Ops", icon: CreditCard },
   { href: "/audit", label: "Audit Log", icon: ClipboardList },
+  { href: "/tickets", label: "Tickets", icon: MessageSquare },
 ];
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [openTickets, setOpenTickets] = useState(0);
   const session = useAdminSession();
   const user = session?.user;
+
+  useEffect(() => {
+    if (pathname === "/login") return;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const { getAccessToken } = await import("@/lib/auth");
+        const { admin } = await import("@/lib/api");
+        const token = getAccessToken() || undefined;
+        const s = await admin.getTicketsSummary(token);
+        if (!cancelled) setOpenTickets(s.open || 0);
+      } catch {
+        // silently ignore — badge is non-critical
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [pathname]);
 
   const handleLogout = async () => {
     try {
@@ -93,13 +114,18 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   href={item.href}
                   onClick={() => setIsSidebarOpen(false)}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                    isActive 
-                      ? "bg-primary/10 text-primary" 
+                    isActive
+                      ? "bg-primary/10 text-primary"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   }`}
                 >
                   <Icon className={`w-5 h-5 ${isActive ? "text-primary" : ""}`} />
                   {item.label}
+                  {item.href === "/tickets" && openTickets > 0 && (
+                    <span className="ml-auto min-w-[20px] h-5 flex items-center justify-center rounded-full bg-destructive text-white text-[10px] font-bold px-1">
+                      {openTickets > 99 ? "99+" : openTickets}
+                    </span>
+                  )}
                 </Link>
               );
             })}

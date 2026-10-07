@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { admin } from "@/lib/api";
 import {
   Loader2,
@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { DateRange } from "react-day-picker";
 import { format } from "date-fns";
+import { UserProfileModal } from "@/components/UserProfileModal";
 
 const CURRENCY_EXPONENTS: Record<string, number> = {
   JPY: 0, KRW: 0, BIF: 0, CLP: 0, GNF: 0, ISK: 0, MGA: 0, PYG: 0,
@@ -36,8 +37,8 @@ function formatAmount(amountMinor: number | string | null | undefined, currencyC
 
 export default function BillingOpsPage() {
   const [activeTab, setActiveTab] = useState<
-    "webhooks" | "transactions" | "chargebacks"
-  >("webhooks");
+    "transactions" | "chargebacks" | "webhooks"
+  >("transactions");
 
   const [webhooks, setWebhooks] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -55,9 +56,7 @@ export default function BillingOpsPage() {
   const [webhookFilterEvent, setWebhookFilterEvent] = useState("all");
   const [webhookFilterSince, setWebhookFilterSince] = useState("");
   const [webhookFilterUntil, setWebhookFilterUntil] = useState("");
-  const [webhookDateRange, setWebhookDateRange] = useState<
-    DateRange | undefined
-  >(undefined);
+  const [webhookDateRange, setWebhookDateRange] = useState<DateRange | undefined>(undefined);
 
   useEffect(() => {
     if (webhookDateRange?.from) {
@@ -72,6 +71,64 @@ export default function BillingOpsPage() {
     }
   }, [webhookDateRange]);
 
+  // Transaction filters
+  const [txSearchInput, setTxSearchInput] = useState("");
+  const [txFilterQ, setTxFilterQ] = useState("");
+  const [txFilterStatus, setTxFilterStatus] = useState("all");
+  const [txFilterPlan, setTxFilterPlan] = useState("all");
+  const [txFilterCurrency, setTxFilterCurrency] = useState("all");
+  const [txFilterSince, setTxFilterSince] = useState("");
+  const [txFilterUntil, setTxFilterUntil] = useState("");
+  const [txDateRange, setTxDateRange] = useState<DateRange | undefined>(undefined);
+  const [txFiltersData, setTxFiltersData] = useState<{
+    statuses: string[];
+    currencies: string[];
+    plans: { code: string; name: string }[];
+  } | null>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setTxFilterQ(txSearchInput), 300);
+    return () => clearTimeout(timer);
+  }, [txSearchInput]);
+
+  useEffect(() => {
+    if (txDateRange?.from) {
+      setTxFilterSince(txDateRange.from.toISOString());
+    } else {
+      setTxFilterSince("");
+    }
+    if (txDateRange?.to) {
+      setTxFilterUntil(txDateRange.to.toISOString());
+    } else {
+      setTxFilterUntil("");
+    }
+  }, [txDateRange]);
+
+  // Chargeback filters
+  const [cbSearchInput, setCbSearchInput] = useState("");
+  const [cbFilterQ, setCbFilterQ] = useState("");
+  const [cbFilterSince, setCbFilterSince] = useState("");
+  const [cbFilterUntil, setCbFilterUntil] = useState("");
+  const [cbDateRange, setCbDateRange] = useState<DateRange | undefined>(undefined);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setCbFilterQ(cbSearchInput), 300);
+    return () => clearTimeout(timer);
+  }, [cbSearchInput]);
+
+  useEffect(() => {
+    if (cbDateRange?.from) {
+      setCbFilterSince(cbDateRange.from.toISOString());
+    } else {
+      setCbFilterSince("");
+    }
+    if (cbDateRange?.to) {
+      setCbFilterUntil(cbDateRange.to.toISOString());
+    } else {
+      setCbFilterUntil("");
+    }
+  }, [cbDateRange]);
+
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [selectedTx, setSelectedTx] = useState<any>(null);
   const [refundReason, setRefundReason] = useState("");
@@ -83,6 +140,28 @@ export default function BillingOpsPage() {
   const [showWebhookModal, setShowWebhookModal] = useState(false);
   const [selectedWebhook, setSelectedWebhook] = useState<any>(null);
   const [webhookDetailsLoading, setWebhookDetailsLoading] = useState(false);
+
+  // User profile popup
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
+  const openUserProfile = (userId: string) => setProfileUserId(userId);
+
+  // Fetch transaction filter options once when transactions tab first opens
+  const txFiltersLoadedRef = useRef(false);
+  useEffect(() => {
+    if (activeTab === "transactions" && !txFiltersLoadedRef.current) {
+      txFiltersLoadedRef.current = true;
+      (async () => {
+        try {
+          const { getAccessToken } = await import("@/lib/auth");
+          const token = getAccessToken() || undefined;
+          const data = await admin.getTransactionFilters(token);
+          setTxFiltersData(data);
+        } catch {
+          // non-fatal — dropdowns just won't be populated
+        }
+      })();
+    }
+  }, [activeTab]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -104,19 +183,22 @@ export default function BillingOpsPage() {
         setWebhooks(response?.items || []);
         setTotalPages(response?.pages || 1);
       } else if (activeTab === "transactions") {
-        const response = await admin.getTransactions(
-          token,
-          currentPage,
-          pageSize,
-        );
+        const response = await admin.getTransactions(token, currentPage, pageSize, {
+          q: txFilterQ,
+          status: txFilterStatus,
+          plan: txFilterPlan,
+          currency: txFilterCurrency,
+          since: txFilterSince,
+          until: txFilterUntil,
+        });
         setTransactions(response?.items || []);
         setTotalPages(response?.pages || 1);
       } else if (activeTab === "chargebacks") {
-        const response = await admin.getChargebacks(
-          token,
-          currentPage,
-          pageSize,
-        );
+        const response = await admin.getChargebacks(token, currentPage, pageSize, {
+          q: cbFilterQ,
+          since: cbFilterSince,
+          until: cbFilterUntil,
+        });
         setChargebacks(response?.items || []);
         setTotalPages(response?.pages || 1);
       }
@@ -131,16 +213,44 @@ export default function BillingOpsPage() {
     setCurrentPage(1);
   }, [activeTab]);
 
+  // Reset page when any filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    txFilterQ, txFilterStatus, txFilterPlan, txFilterCurrency, txFilterSince, txFilterUntil,
+    cbFilterQ, cbFilterSince, cbFilterUntil,
+    webhookFilterStatus, webhookFilterEvent, webhookFilterSince, webhookFilterUntil,
+  ]);
+
   useEffect(() => {
     fetchData();
   }, [
     activeTab,
     currentPage,
-    webhookFilterStatus,
-    webhookFilterEvent,
-    webhookFilterSince,
-    webhookFilterUntil,
+    txFilterQ, txFilterStatus, txFilterPlan, txFilterCurrency, txFilterSince, txFilterUntil,
+    cbFilterQ, cbFilterSince, cbFilterUntil,
+    webhookFilterStatus, webhookFilterEvent, webhookFilterSince, webhookFilterUntil,
   ]);
+
+  const clearTxFilters = () => {
+    setTxSearchInput("");
+    setTxFilterQ("");
+    setTxFilterStatus("all");
+    setTxFilterPlan("all");
+    setTxFilterCurrency("all");
+    setTxDateRange(undefined);
+  };
+
+  const clearCbFilters = () => {
+    setCbSearchInput("");
+    setCbFilterQ("");
+    setCbDateRange(undefined);
+  };
+
+  const hasTxFilters =
+    txFilterQ || txFilterStatus !== "all" || txFilterPlan !== "all" ||
+    txFilterCurrency !== "all" || txFilterSince || txFilterUntil;
+  const hasCbFilters = cbFilterQ || cbFilterSince || cbFilterUntil;
 
   const handleReplay = async (id: string) => {
     setActionLoading(id);
@@ -168,7 +278,7 @@ export default function BillingOpsPage() {
       setSelectedWebhook(details);
     } catch (err) {
       console.error("Failed to fetch webhook details", err);
-      setSelectedWebhook(hook); // fallback to basic hook data
+      setSelectedWebhook(hook);
     } finally {
       setWebhookDetailsLoading(false);
     }
@@ -310,6 +420,46 @@ export default function BillingOpsPage() {
   const createTxColumns = (showActions: boolean, showReinstate = false): Column<any>[] => {
     const cols: Column<any>[] = [
       {
+        key: "date",
+        header: "Date",
+        render: (tx) => (
+          <span className="text-xs text-muted-foreground">
+            {tx.occurred_at ? new Date(tx.occurred_at).toLocaleString() : "N/A"}
+          </span>
+        ),
+      },
+      {
+        key: "user",
+        header: "User",
+        render: (tx) =>
+          tx.user_email ? (
+            <button
+              type="button"
+              onClick={() => openUserProfile(tx.user_id)}
+              className="text-sm text-primary hover:underline text-left"
+              title={tx.user_name ?? undefined}
+            >
+              {tx.user_email}
+            </button>
+          ) : (
+            <span className="text-xs text-muted-foreground">Deleted account</span>
+          ),
+      },
+      {
+        key: "plan",
+        header: "Plan",
+        render: (tx) => <span className="text-sm">{tx.plan_name ?? "—"}</span>,
+      },
+      {
+        key: "amount",
+        header: "Amount",
+        render: (tx) => (
+          <span className="font-mono text-sm">
+            {formatAmount(tx.amount_minor, tx.currency_code)}
+          </span>
+        ),
+      },
+      {
         key: "status",
         header: "Status",
         render: (tx) => (
@@ -327,42 +477,6 @@ export default function BillingOpsPage() {
             }`}
           >
             {tx.status}
-          </span>
-        ),
-      },
-      {
-        key: "amount",
-        header: "Amount",
-        render: (tx) => (
-          <span className="font-mono text-sm">
-            {formatAmount(tx.amount_minor, tx.currency_code)}
-          </span>
-        ),
-      },
-      {
-        key: "user_id",
-        header: "User ID",
-        render: (tx) => (
-          <span className="font-mono text-xs text-muted-foreground truncate max-w-[120px] block">
-            {tx.user_id}
-          </span>
-        ),
-      },
-      {
-        key: "provider_tx",
-        header: "Provider TX",
-        render: (tx) => (
-          <span className="font-mono text-xs text-muted-foreground truncate max-w-[150px] block">
-            {tx.provider_transaction_id}
-          </span>
-        ),
-      },
-      {
-        key: "date",
-        header: "Date",
-        render: (tx) => (
-          <span className="text-xs text-muted-foreground">
-            {tx.occurred_at ? new Date(tx.occurred_at).toLocaleString() : "N/A"}
           </span>
         ),
       },
@@ -448,12 +562,6 @@ export default function BillingOpsPage() {
 
       <div className="flex border-b border-border">
         <button
-          onClick={() => setActiveTab("webhooks")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === "webhooks" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
-        >
-          Webhooks
-        </button>
-        <button
           onClick={() => setActiveTab("transactions")}
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === "transactions" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
         >
@@ -464,6 +572,12 @@ export default function BillingOpsPage() {
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === "chargebacks" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
         >
           Chargebacks
+        </button>
+        <button
+          onClick={() => setActiveTab("webhooks")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === "webhooks" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+        >
+          Webhooks
         </button>
       </div>
 
@@ -512,6 +626,74 @@ export default function BillingOpsPage() {
             </div>
           )}
         </div>
+
+        {/* Transaction filters */}
+        {activeTab === "transactions" && (
+          <div className="flex flex-wrap gap-3 items-center">
+            <input
+              type="text"
+              placeholder="Search email, name or Paddle ID"
+              value={txSearchInput}
+              onChange={(e) => setTxSearchInput(e.target.value)}
+              className="px-3 py-1.5 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary w-72"
+            />
+            <select
+              value={txFilterStatus}
+              onChange={(e) => setTxFilterStatus(e.target.value)}
+              className="px-3 py-1.5 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="all">All Statuses</option>
+              {(txFiltersData?.statuses ?? []).map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+            <select
+              value={txFilterPlan}
+              onChange={(e) => setTxFilterPlan(e.target.value)}
+              className="px-3 py-1.5 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="all">All Plans</option>
+              {(txFiltersData?.plans ?? []).map((p) => (
+                <option key={p.code} value={p.code}>{p.name}</option>
+              ))}
+            </select>
+            <select
+              value={txFilterCurrency}
+              onChange={(e) => setTxFilterCurrency(e.target.value)}
+              className="px-3 py-1.5 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="all">All Currencies</option>
+              {(txFiltersData?.currencies ?? []).map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <DatePickerWithRange date={txDateRange} setDate={setTxDateRange} />
+            {hasTxFilters && (
+              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={clearTxFilters}>
+                Clear filters
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* Chargeback filters */}
+        {activeTab === "chargebacks" && (
+          <div className="flex flex-wrap gap-3 items-center">
+            <input
+              type="text"
+              placeholder="Search email, name or Paddle ID"
+              value={cbSearchInput}
+              onChange={(e) => setCbSearchInput(e.target.value)}
+              className="px-3 py-1.5 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary w-72"
+            />
+            <DatePickerWithRange date={cbDateRange} setDate={setCbDateRange} />
+            {hasCbFilters && (
+              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={clearCbFilters}>
+                Clear filters
+              </Button>
+            )}
+          </div>
+        )}
 
         {activeTab === "webhooks" && (
           <DataTable
@@ -601,9 +783,9 @@ export default function BillingOpsPage() {
           <div className="bg-card w-full max-w-md p-6 rounded-lg shadow-lg border border-border relative">
             <h2 className="text-xl font-bold mb-4">Reinstate User</h2>
             <p className="text-sm text-muted-foreground mb-4">
-              Reinstate account for user{" "}
-              <strong className="text-foreground font-mono">
-                {reinstateTarget.user_id}
+              Reinstate account for{" "}
+              <strong className="text-foreground">
+                {reinstateTarget.user_email ?? reinstateTarget.user_id}
               </strong>
               . This will re-activate their account after the chargeback
               deactivation.
@@ -707,23 +889,33 @@ export default function BillingOpsPage() {
                     )}
                   </div>
 
-                  {selectedWebhook.payload && selectedWebhook.payload.data && (
+                  {selectedWebhook.payload?.data && (
                     <div className="bg-muted/10 p-4 rounded-md border border-border">
                       <h3 className="text-sm font-medium mb-3">
                         Extracted Details
                       </h3>
                       <div className="grid grid-cols-2 gap-4 text-sm">
-                        {selectedWebhook.payload.data.custom_data?.user_id && (
+                        {(selectedWebhook.user_email || selectedWebhook.payload?.data?.custom_data?.user_id) && (
                           <div>
                             <span className="text-muted-foreground block text-xs">
-                              User ID
+                              User
                             </span>
-                            <span className="font-mono break-all">
-                              {selectedWebhook.payload.data.custom_data.user_id}
-                            </span>
+                            {selectedWebhook.user_email ? (
+                              <button
+                                type="button"
+                                onClick={() => openUserProfile(selectedWebhook.user_id)}
+                                className="text-sm text-primary hover:underline text-left break-all"
+                              >
+                                {selectedWebhook.user_email}
+                              </button>
+                            ) : (
+                              <span className="font-mono break-all text-xs">
+                                {selectedWebhook.payload?.data?.custom_data?.user_id}
+                              </span>
+                            )}
                           </div>
                         )}
-                        {selectedWebhook.payload.data.customer_id && (
+                        {selectedWebhook.payload?.data?.customer_id && (
                           <div>
                             <span className="text-muted-foreground block text-xs">
                               Customer ID
@@ -733,22 +925,17 @@ export default function BillingOpsPage() {
                             </span>
                           </div>
                         )}
-                        {selectedWebhook.payload.data.custom_data
-                          ?.plan_code && (
+                        {(selectedWebhook.plan_code ?? selectedWebhook.payload?.data?.custom_data?.plan_code) && (
                           <div>
                             <span className="text-muted-foreground block text-xs">
                               Plan Code
                             </span>
                             <span className="capitalize font-medium">
-                              {
-                                selectedWebhook.payload.data.custom_data
-                                  .plan_code
-                              }
+                              {selectedWebhook.plan_code ?? selectedWebhook.payload?.data?.custom_data?.plan_code}
                             </span>
                           </div>
                         )}
-                        {selectedWebhook.payload.data.details?.totals
-                          ?.total && (
+                        {selectedWebhook.payload?.data?.details?.totals?.total && (
                           <div>
                             <span className="text-muted-foreground block text-xs">
                               Total Amount
@@ -761,17 +948,13 @@ export default function BillingOpsPage() {
                             </span>
                           </div>
                         )}
-                        {selectedWebhook.payload.data.items?.[0]?.price
-                          ?.description && (
+                        {selectedWebhook.payload?.data?.items?.[0]?.price?.description && (
                           <div className="col-span-2">
                             <span className="text-muted-foreground block text-xs">
                               Item Description
                             </span>
                             <span>
-                              {
-                                selectedWebhook.payload.data.items[0].price
-                                  .description
-                              }
+                              {selectedWebhook.payload.data.items[0].price.description}
                             </span>
                           </div>
                         )}
@@ -810,6 +993,8 @@ export default function BillingOpsPage() {
           </div>
         </div>
       )}
+
+      <UserProfileModal userId={profileUserId} onClose={() => setProfileUserId(null)} />
     </div>
   );
 }
