@@ -1,0 +1,13 @@
+services:
+  admin-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: https://offerlyiq.ai/api/v1
+    image: vnjoshi/offerly-admin:latest
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+    restart: unless-stopped

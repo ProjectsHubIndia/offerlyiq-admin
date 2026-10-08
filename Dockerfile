@@ -12,6 +12,14 @@ COPY . .
 # NEXT_PUBLIC_* vars are inlined into the bundle at BUILD time, so they must be
 # passed as build args (docker build --build-arg ...), not runtime env.
 ARG NEXT_PUBLIC_API_URL
+
+# Fail loudly if the API URL was not supplied — an empty baseURL silently makes
+# every Axios call hit the origin root instead of /api/v1.
+RUN test -n "$NEXT_PUBLIC_API_URL" || \
+    { echo "ERROR: NEXT_PUBLIC_API_URL build arg is required." \
+           "Example: docker build --build-arg NEXT_PUBLIC_API_URL=https://dev.offerlyiq.ai/api/v1 ."; \
+      exit 1; }
+
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 RUN --mount=type=cache,target=/app/.next/cache \

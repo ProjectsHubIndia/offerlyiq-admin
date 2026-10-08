@@ -15,7 +15,7 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public status?: number,
-    public data?: unknown
+    public data?: unknown,
   ) {
     super(message);
     this.name = "ApiError";
@@ -30,8 +30,12 @@ export class InsufficientCreditsError extends ApiError {
   }
 }
 
-export const isInsufficientCreditsError = (err: unknown): err is InsufficientCreditsError => 
-  typeof err === "object" && err !== null && (err as { isInsufficientCredits?: boolean }).isInsufficientCredits === true;
+export const isInsufficientCreditsError = (
+  err: unknown,
+): err is InsufficientCreditsError =>
+  typeof err === "object" &&
+  err !== null &&
+  (err as { isInsufficientCredits?: boolean }).isInsufficientCredits === true;
 
 type RetryableConfig = AxiosRequestConfig & { _retried?: boolean };
 
@@ -68,7 +72,11 @@ axiosMain.interceptors.response.use(
       );
 
       let responseData = error.response?.data;
-      if (responseData instanceof Blob && error.response?.status && error.response.status >= 400) {
+      if (
+        responseData instanceof Blob &&
+        error.response?.status &&
+        error.response.status >= 400
+      ) {
         try {
           const text = await responseData.text();
           responseData = JSON.parse(text);
@@ -91,7 +99,8 @@ axiosMain.interceptors.response.use(
       if (
         error.response?.status === 401 &&
         typeof detail === "string" &&
-        (detail.includes("Email not verified") || detail.includes("Account is deactivated"))
+        (detail.includes("Email not verified") ||
+          detail.includes("Account is deactivated"))
       ) {
         return Promise.reject(new ApiError(detail, 401, responseData));
       }
@@ -119,17 +128,25 @@ axiosMain.interceptors.response.use(
       }
 
       if (error.response?.status === 429) {
-        return Promise.reject(new ApiError("Please slow down and try again shortly.", 429));
-      }
-            
-      if (error.response?.status === 402) {
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("insufficientCredits", { detail: message }));
-        }
-        return Promise.reject(new InsufficientCreditsError(message, 402, responseData));
+        return Promise.reject(
+          new ApiError("Please slow down and try again shortly.", 429),
+        );
       }
 
-      return Promise.reject(new ApiError(message, error.response?.status, responseData));
+      if (error.response?.status === 402) {
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("insufficientCredits", { detail: message }),
+          );
+        }
+        return Promise.reject(
+          new InsufficientCreditsError(message, 402, responseData),
+        );
+      }
+
+      return Promise.reject(
+        new ApiError(message, error.response?.status, responseData),
+      );
     }
     return Promise.reject(error);
   },

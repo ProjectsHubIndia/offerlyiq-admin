@@ -40,6 +40,7 @@ export default function UsersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [pageSize, setPageSize] = useState(10);
 
   // Modals state
   const [selectedUser, setSelectedUser] = useState<any>(null);
@@ -84,6 +85,7 @@ export default function UsersPage() {
     search?: string,
     rFilter = roleFilter,
     sFilter = statusFilter,
+    limit = pageSize,
   ) => {
     setLoading(true);
     try {
@@ -92,7 +94,7 @@ export default function UsersPage() {
       const response = await admin.getUsers(
         token,
         pageNumber,
-        10,
+        limit,
         search,
         rFilter,
         sFilter,
@@ -488,6 +490,34 @@ export default function UsersPage() {
                 className="w-full pl-9 pr-4 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-colors"
               />
             </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            {totalItems > 0 && (
+              <>
+                Showing{" "}
+                {Math.min((page - 1) * pageSize + 1, totalItems)}–
+                {Math.min(page * pageSize, totalItems)} of {totalItems}
+              </>
+            )}
+          </p>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span>Rows per page:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                const newSize = Number(e.target.value);
+                setPageSize(newSize);
+                fetchUsers(1, searchQuery, roleFilter, statusFilter, newSize);
+              }}
+              className="px-2 py-1 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              {[10, 20, 30, 40, 50, 100].map((n) => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
           </div>
         </div>
 

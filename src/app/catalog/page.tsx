@@ -149,9 +149,7 @@ export default function CatalogPage() {
 
       const loadedMods: ModuleItem[] = mods || [];
       const loadedFeats: FeatureItem[] = feats || [];
-      const loadedSets: SettingGroup[] = Array.isArray(sets)
-        ? sets
-        : [];
+      const loadedSets: SettingGroup[] = Array.isArray(sets) ? sets : [];
 
       setModules(loadedMods);
       setFeatures(loadedFeats);
@@ -215,7 +213,9 @@ export default function CatalogPage() {
     } catch (err: any) {
       console.error("Failed to update module", err);
       const detail = err.response?.data?.detail;
-      toast.error(typeof detail === "string" ? detail : "Error updating module");
+      toast.error(
+        typeof detail === "string" ? detail : "Error updating module",
+      );
     } finally {
       setModuleLoading(false);
     }
@@ -420,6 +420,18 @@ export default function CatalogPage() {
 
         {/* Tab Navigation */}
         <div className="flex border-b border-border">
+            <button
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === "features"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+            }`}
+            onClick={() => setActiveTab("features")}
+          >
+            <div className="flex items-center gap-2">
+              <List className="w-4 h-4" /> Features
+            </div>
+          </button>
           <button
             className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
               activeTab === "modules"
@@ -432,18 +444,7 @@ export default function CatalogPage() {
               <Server className="w-4 h-4" /> Modules
             </div>
           </button>
-          <button
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === "features"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-            }`}
-            onClick={() => setActiveTab("features")}
-          >
-            <div className="flex items-center gap-2">
-              <List className="w-4 h-4" /> Features
-            </div>
-          </button>
+        
           <button
             className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
               activeTab === "settings"
@@ -535,9 +536,10 @@ export default function CatalogPage() {
                   <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                   <span>
                     Features are switched on per plan in{" "}
-                    <strong className="text-foreground">Plans → Edit</strong>, and
-                    made free for everyone in{" "}
-                    <strong className="text-foreground">Global settings</strong>.
+                    <strong className="text-foreground">Plans → Edit</strong>,
+                    and made free for everyone in{" "}
+                    <strong className="text-foreground">Global settings</strong>
+                    .
                   </span>
                 </div>
 
@@ -594,7 +596,8 @@ export default function CatalogPage() {
                                 </p>
                                 {setting.updated_at && (
                                   <span className="text-[11px] text-muted-foreground/70 mt-1.5 block">
-                                    Last changed {relativeTime(setting.updated_at)}
+                                    Last changed{" "}
+                                    {relativeTime(setting.updated_at)}
                                   </span>
                                 )}
                               </div>
@@ -660,7 +663,8 @@ export default function CatalogPage() {
                                                 [setting.key]:
                                                   val === ""
                                                     ? ""
-                                                    : setting.input === "decimal"
+                                                    : setting.input ===
+                                                        "decimal"
                                                       ? parseFloat(val)
                                                       : parseInt(val, 10),
                                               });
@@ -681,9 +685,10 @@ export default function CatalogPage() {
                                               onChange={(e) => {
                                                 setEditingValues({
                                                   ...editingValues,
-                                                  [setting.key]: e.target.checked
+                                                  [setting.key]: e.target
+                                                    .checked
                                                     ? null
-                                                    : setting.min ?? 0,
+                                                    : (setting.min ?? 0),
                                                 });
                                               }}
                                               className="w-4 h-4 rounded border-border"
@@ -727,55 +732,52 @@ export default function CatalogPage() {
                                     {/* MULTI_CHOICE */}
                                     {setting.input === "multi_choice" && (
                                       <div className="flex-1 space-y-2 max-h-48 overflow-y-auto pr-1 border border-border rounded-md p-2 bg-muted/10">
-                                        {(setting.options || []).map(
-                                          (opt) => {
-                                            const selectedList: string[] =
-                                              Array.isArray(currentVal)
-                                                ? currentVal
-                                                : [];
-                                            const isChecked =
-                                              selectedList.includes(opt.value);
+                                        {(setting.options || []).map((opt) => {
+                                          const selectedList: string[] =
+                                            Array.isArray(currentVal)
+                                              ? currentVal
+                                              : [];
+                                          const isChecked =
+                                            selectedList.includes(opt.value);
 
-                                            return (
-                                              <label
-                                                key={opt.value}
-                                                className="flex items-start gap-2.5 p-1.5 rounded hover:bg-muted/40 cursor-pointer transition-colors"
-                                              >
-                                                <input
-                                                  type="checkbox"
-                                                  checked={isChecked}
-                                                  onChange={(e) => {
-                                                    const nextList =
-                                                      e.target.checked
-                                                        ? [
-                                                            ...selectedList,
-                                                            opt.value,
-                                                          ]
-                                                        : selectedList.filter(
-                                                            (v) =>
-                                                              v !== opt.value,
-                                                          );
-                                                    setEditingValues({
-                                                      ...editingValues,
-                                                      [setting.key]: nextList,
-                                                    });
-                                                  }}
-                                                  className="w-4 h-4 rounded border-border mt-0.5"
-                                                />
-                                                <div className="min-w-0">
-                                                  <div className="text-xs font-semibold text-foreground">
-                                                    {opt.label}
-                                                  </div>
-                                                  {opt.description && (
-                                                    <div className="text-[11px] text-muted-foreground leading-tight mt-0.5">
-                                                      {opt.description}
-                                                    </div>
-                                                  )}
+                                          return (
+                                            <label
+                                              key={opt.value}
+                                              className="flex items-start gap-2.5 p-1.5 rounded hover:bg-muted/40 cursor-pointer transition-colors"
+                                            >
+                                              <input
+                                                type="checkbox"
+                                                checked={isChecked}
+                                                onChange={(e) => {
+                                                  const nextList = e.target
+                                                    .checked
+                                                    ? [
+                                                        ...selectedList,
+                                                        opt.value,
+                                                      ]
+                                                    : selectedList.filter(
+                                                        (v) => v !== opt.value,
+                                                      );
+                                                  setEditingValues({
+                                                    ...editingValues,
+                                                    [setting.key]: nextList,
+                                                  });
+                                                }}
+                                                className="w-4 h-4 rounded border-border mt-0.5"
+                                              />
+                                              <div className="min-w-0">
+                                                <div className="text-xs font-semibold text-foreground">
+                                                  {opt.label}
                                                 </div>
-                                              </label>
-                                            );
-                                          },
-                                        )}
+                                                {opt.description && (
+                                                  <div className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                                                    {opt.description}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            </label>
+                                          );
+                                        })}
                                       </div>
                                     )}
 
@@ -789,7 +791,9 @@ export default function CatalogPage() {
                                       disabled={unchanged || isSaving}
                                       className="shrink-0 h-9 px-3 gap-1.5"
                                       title={
-                                        unchanged ? "No changes" : "Save setting"
+                                        unchanged
+                                          ? "No changes"
+                                          : "Save setting"
                                       }
                                     >
                                       {isSaving ? (
