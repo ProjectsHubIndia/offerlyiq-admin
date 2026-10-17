@@ -1,5 +1,6 @@
 import type { TokenResponse, User, MessageResponse } from "@/types/auth";
 import axiosMain from "@/lib/axiosMain";
+import type { AppPlatform, AppSlot, AppUploadTicket } from "@/types/app-downloads";
 
 function authHeader(accessToken: string) {
   return { headers: { Authorization: `Bearer ${accessToken}` } };
@@ -327,4 +328,62 @@ export const admin = {
     axiosMain.get(`/admin/tickets/${id}`, authConfig(token)).then((r) => r.data),
   updateTicket: (id: string, data: { status?: string; admin_note?: string | null }, token?: string) =>
     axiosMain.patch(`/admin/tickets/${id}`, data, authConfig(token)).then((r) => r.data),
+
+  // Desktop app downloads — see uploadToStorage() for the file itself
+  getAppDownloads: (token?: string): Promise<AppSlot[]> =>
+    axiosMain.get("/admin/app-downloads", authConfig(token)).then((r) => r.data),
+  createAppUploadUrl: (
+    platform: AppPlatform,
+    data: { file_name: string; size_bytes?: number },
+    token?: string,
+  ): Promise<AppUploadTicket> =>
+    axiosMain
+      .post(`/admin/app-downloads/${platform}/upload-url`, data, authConfig(token))
+      .then((r) => r.data),
+  publishAppDownload: (platform: AppPlatform, objectKey: string, token?: string): Promise<AppSlot> =>
+    axiosMain
+      .put(`/admin/app-downloads/${platform}`, { object_key: objectKey }, authConfig(token))
+      .then((r) => r.data),
+  removeAppDownload: (platform: AppPlatform, token?: string): Promise<void> =>
+    axiosMain.delete(`/admin/app-downloads/${platform}`, authConfig(token)).then(() => undefined),
 };
+
+/**
+ * PUT a file straight to cloud storage through a signed URL.
+ *
+ * Plain XHR rather than axiosMain: the request goes to storage, not our API, so it must
+ * carry no Authorization header and no base URL — and XHR is what reports upload
+ * progress. Send exactly the headers the API returned, or storage rejects the PUT.
+ */
+export function uploadToStorage(
+  ticket: AppUploadTicket,
+  file: File,
+  onProgress: (percent: number) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(ticket.method, ticket.upload_url);
+    for (const [name, value] of Object.entries(ticket.headers)) {
+      xhr.setRequestHeader(name, value);
+    }
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve();
+      else
+        reject(
+          new Error(
+            xhr.status === 403
+              ? "Storage refused the upload — the link may have expired. Try again."
+              : `Upload failed (${xhr.status})`,
+          ),
+        );
+    };
+    xhr.onerror = () => reject(new Error("Upload failed — check your connection and try again."));
+    xhr.onabort = () => reject(new DOMException("Upload cancelled", "AbortError"));
+    signal?.addEventListener("abort", () => xhr.abort(), { once: true });
+    xhr.send(file);
+  });
+}

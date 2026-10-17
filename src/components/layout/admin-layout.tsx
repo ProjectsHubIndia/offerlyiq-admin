@@ -12,6 +12,7 @@ import {
   CreditCard,
   ClipboardList,
   MessageSquare,
+  MonitorDown,
   LogOut,
   Menu,
   X,
@@ -28,6 +29,7 @@ const navItems = [
   { href: "/billing", label: "Billing Ops", icon: CreditCard },
   { href: "/audit", label: "Audit Log", icon: ClipboardList },
   { href: "/tickets", label: "Tickets", icon: MessageSquare },
+  { href: "/downloads", label: "App Downloads", icon: MonitorDown },
 ];
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
