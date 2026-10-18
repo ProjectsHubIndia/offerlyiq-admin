@@ -479,11 +479,39 @@ export default function BillingOpsPage() {
         render: (tx) => <span className="text-sm">{tx.plan_name || "—"}</span>,
       },
       {
-        key: "amount",
-        header: "Amount",
+        key: "gross_usd",
+        header: "Total (USD)",
         render: (tx) => (
-          <span className="font-mono text-sm">
-            {formatAmount(tx.amount_minor, tx.currency_code)}
+          <span
+            className="font-mono text-sm"
+            title={
+              tx.currency_code && tx.currency_code !== "USD"
+                ? `Charged: ${formatAmount(tx.amount_minor, tx.currency_code)}`
+                : undefined
+            }
+          >
+            {tx.gross_usd != null ? (
+              `$${tx.gross_usd.toFixed(2)}`
+            ) : (
+              <span className="text-xs text-muted-foreground italic">
+                Converting…
+              </span>
+            )}
+          </span>
+        ),
+      },
+      {
+        key: "net_usd",
+        header: "Net (USD)",
+        render: (tx) => (
+          <span className="font-mono text-sm text-emerald-500 font-medium">
+            {tx.net_usd != null ? (
+              `$${tx.net_usd.toFixed(2)}`
+            ) : (
+              <span className="text-xs text-muted-foreground italic">
+                Converting…
+              </span>
+            )}
           </span>
         ),
       },
@@ -765,7 +793,12 @@ export default function BillingOpsPage() {
               You are about to refund transaction{" "}
               <strong>{selectedTx.id}</strong> for{" "}
               <strong className="text-foreground">
-                {formatAmount(selectedTx.amount_minor, selectedTx.currency_code)}
+                {selectedTx.gross_usd != null
+                  ? `$${selectedTx.gross_usd.toFixed(2)}`
+                  : formatAmount(selectedTx.amount_minor, selectedTx.currency_code)}
+                {selectedTx.currency_code && selectedTx.currency_code !== "USD" && selectedTx.gross_usd != null
+                  ? ` (${formatAmount(selectedTx.amount_minor, selectedTx.currency_code)})`
+                  : ""}
               </strong>
               . This action cannot be undone.
             </p>

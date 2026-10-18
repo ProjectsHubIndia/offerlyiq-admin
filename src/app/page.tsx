@@ -32,6 +32,7 @@ import {
   ComposedChart,
   Line,
   LabelList,
+  Legend,
 } from "recharts";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
@@ -112,10 +113,10 @@ export default function AdminDashboard() {
 
         const results = await Promise.allSettled([
           admin.overview(token, { since, until }),
-          admin.revenue(token, chartDays),
+          admin.getRevenueUsd(token, chartDays),
           admin.creditFlow(token, chartDays),
           admin.moduleUsage(token),
-          admin.planSales(token),
+          admin.getPlanSalesUsd(token),
         ]);
 
         const overviewRes =
@@ -131,23 +132,19 @@ export default function AdminDashboard() {
 
         setOverviewData(overviewRes);
 
-        // Format revenue data for Recharts (convert cents to dollars, period to date)
-        const baseCurrency = overviewRes?.revenue_currency || "USD";
-        const allRevenue = revenueRes || [];
-        let filtered = allRevenue.filter(
-          (item: any) => item.currency_code === baseCurrency,
-        );
-        // Fallback: if the configured base currency has no transactions, show the
-        // dominant currency that actually has data instead of an empty chart.
-        if (filtered.length === 0 && allRevenue.length > 0) {
-          filtered = allRevenue.filter(
-            (item: any) => item.currency_code === allRevenue[0].currency_code,
-          );
-        }
-        const formattedRevenue = filtered
-          .map((item: any) => {
-            let shortDate = item.period;
-            try {
+        // Build chart from USD endpoint (one point per day, all currencies combined in USD)
+        const allRevenue = Array.isArray(revenueRes) ? revenueRes : [];
+        const formattedRevenue = allRevenue.map((item: any) => {
+          let shortDate = item.period;
+          try {
+            const parts = String(item.period).split("-");
+            if (parts.length === 3) {
+              const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+              shortDate = d.toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+              });
+            } else {
               const d = new Date(item.period);
               if (!isNaN(d.getTime())) {
                 shortDate = d.toLocaleDateString("en-US", {
@@ -155,17 +152,19 @@ export default function AdminDashboard() {
                   day: "numeric",
                 });
               }
-            } catch (e) {}
+            }
+          } catch (e) {}
 
-            return {
-              date: shortDate,
-              amount: item.value ? item.value / 100 : 0,
-              display: item.display,
-              currency: item.currency_code,
-              fullDate: item.period,
-            };
-          });
-        setRevenueData(formattedRevenue ?? []);
+          return {
+            date: shortDate,
+            gross: typeof item.gross_usd === "number" ? item.gross_usd : 0,
+            net: typeof item.net_usd === "number" ? item.net_usd : 0,
+            unconverted: item.unconverted || 0,
+            transactions: item.transactions || 0,
+            fullDate: item.period,
+          };
+        });
+        setRevenueData(formattedRevenue);
 
         let totalGranted = 0,
           totalSpent = 0,
@@ -243,28 +242,31 @@ export default function AdminDashboard() {
       key: "plan_code",
       header: "Plan",
       render: (p) => (
-        <span className="font-medium capitalize">{p.plan_code}</span>
-      ),
-    },
-    {
-      key: "currency_code",
-      header: "Currency",
-      render: (p) => (
-        <span className="font-mono text-xs">{p.currency_code}</span>
+        <span className="font-medium capitalize">{p.plan_name || p.plan_code}</span>
       ),
     },
     {
       key: "purchases",
-      header: "Purchases",
+      header: "Sold",
       align: "right",
       render: (p) => <span className="font-mono">{p.purchases}</span>,
     },
     {
-      key: "revenue",
-      header: "Revenue",
+      key: "gross_usd",
+      header: "Total (USD)",
       align: "right",
       render: (p) => (
-        <span className="font-mono text-green-500">{p.display}</span>
+        <span className="font-mono font-medium">${(p.gross_usd ?? 0).toFixed(2)}</span>
+      ),
+    },
+    {
+      key: "net_usd",
+      header: "Net (USD)",
+      align: "right",
+      render: (p) => (
+        <span className="font-mono text-emerald-500 font-medium">
+          ${(p.net_usd ?? 0).toFixed(2)}
+        </span>
       ),
     },
   ];
@@ -336,7 +338,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         {/* Total Users */}
         <Card className="hover:border-primary/50 transition-colors">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -353,6 +355,34 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
+        {/* Total Revenue */}
+        <Card className="hover:border-primary/50 transition-colors">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              ${(overviewData?.gross_revenue_usd ?? 0).toFixed(2)}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Total paid by customers, all currencies
+            </p>
+            {overviewData?.revenue_by_currency?.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {(overviewData.revenue_by_currency || [])
+                  .map(
+                    (r: any) =>
+                      `${r.currency_code} · ${r.transactions ?? 0} ${
+                        r.transactions === 1 ? "sale" : "sales"
+                      } · $${(r.gross_usd ?? 0).toFixed(2)}`,
+                  )
+                  .join(" · ")}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Net Revenue */}
         <Card className="hover:border-primary/50 transition-colors">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -364,18 +394,11 @@ export default function AdminDashboard() {
               ${(overviewData?.net_revenue_usd ?? 0).toFixed(2)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {periodLabel} · Net, all currencies, after tax and Paddle fees
+              After Paddle fees &amp; tax (${(overviewData?.paddle_and_tax_usd ?? 0).toFixed(2)})
             </p>
-            {overviewData?.revenue_by_currency?.length > 0 && (
-              <p className="text-xs text-muted-foreground mt-1">
-                {(overviewData.revenue_by_currency || [])
-                  .map(
-                    (r: any) =>
-                      `${r.display}${r.transactions != null ? ` (${r.transactions})` : ""}`,
-                  )
-                  .join(" · ")}
-              </p>
-            )}
+            <p className="text-[11px] text-muted-foreground/80 mt-0.5">
+              {periodLabel} · Net kept
+            </p>
           </CardContent>
         </Card>
 
@@ -509,9 +532,9 @@ export default function AdminDashboard() {
                       dx={-10}
                     />
                     <Tooltip
-                      cursor={{ fill: "rgba(234, 88, 12, 0.1)" }}
+                      cursor={{ fill: "rgba(234, 88, 12, 0.08)" }}
                       contentStyle={{
-                        backgroundColor: "rgba(15, 23, 42, 0.9)",
+                        backgroundColor: "rgba(15, 23, 42, 0.95)",
                         backdropFilter: "blur(8px)",
                         borderColor: "rgba(255,255,255,0.1)",
                         borderRadius: "12px",
@@ -520,48 +543,38 @@ export default function AdminDashboard() {
                         color: "#fff",
                         padding: "12px 16px",
                       }}
-                      itemStyle={{
-                        color: "#ea580c",
-                        fontWeight: "bold",
-                        fontSize: "16px",
-                        padding: 0,
-                      }}
                       labelStyle={{
                         color: "#94a3b8",
-                        marginBottom: "4px",
+                        marginBottom: "6px",
                         fontSize: "13px",
                       }}
-                      formatter={(value: any) => [
-                        `$${parseFloat(value).toFixed(2)}`,
-                        "Revenue",
+                      formatter={(value: any, name: any) => [
+                        `$${parseFloat(value || 0).toFixed(2)}`,
+                        name,
                       ]}
                     />
+                    <Legend
+                      verticalAlign="top"
+                      align="right"
+                      wrapperStyle={{ paddingBottom: "10px", fontSize: "12px" }}
+                    />
                     <Bar
-                      dataKey="amount"
+                      name="Total"
+                      dataKey="gross"
                       fill="url(#colorRevenueBar)"
                       radius={[4, 4, 0, 0]}
                       maxBarSize={50}
-                    >
-                      <LabelList
-                        dataKey="amount"
-                        position="top"
-                        formatter={(val: any) => `$${Number(val).toFixed(2)}`}
-                        style={{
-                          fill: "hsl(var(--foreground))",
-                          fontSize: 12,
-                          fontWeight: "bold",
-                        }}
-                      />
-                    </Bar>
+                    />
                     <Line
+                      name="Net"
                       type="monotone"
-                      dataKey="amount"
-                      stroke="#f97316"
+                      dataKey="net"
+                      stroke="#10b981"
                       strokeWidth={3}
-                      dot={{ r: 4, fill: "#10b981", strokeWidth: 0 }}
+                      dot={{ r: 3, fill: "#10b981", strokeWidth: 0 }}
                       activeDot={{
                         r: 6,
-                        fill: "#f97316",
+                        fill: "#10b981",
                         stroke: "#fff",
                         strokeWidth: 2,
                       }}
@@ -655,9 +668,7 @@ export default function AdminDashboard() {
                   data={planSalesData}
                   isLoading={loading}
                   keyExtractor={(p: any) =>
-                    p.plan_code && p.currency_code
-                      ? `${p.plan_code}_${p.currency_code}`
-                      : p.plan_code || Math.random().toString()
+                    p.plan_code || Math.random().toString()
                   }
                 />
               </div>

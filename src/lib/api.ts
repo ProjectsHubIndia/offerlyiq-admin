@@ -66,6 +66,12 @@ export const admin = {
     axiosMain
       .get("/admin/analytics/revenue", { ...authConfig(token), params: days ? { days } : undefined })
       .then((r) => r.data),
+  getRevenueUsd: (token?: string, days = 30) =>
+    axiosMain
+      .get("/admin/analytics/revenue/usd", { ...authConfig(token), params: { days } })
+      .then((r) => r.data),
+  getPlanSalesUsd: (token?: string) =>
+    axiosMain.get("/admin/analytics/plans/usd", authConfig(token)).then((r) => r.data),
   // Users
   getUsers: (token?: string, page = 1, size = 20, q?: string, role?: string, is_active?: string) =>
     axiosMain

@@ -195,19 +195,26 @@ export function UserProfileModal({ userId, onClose }: UserProfileModalProps) {
               )}
 
               {userMargin && (
-                <div className="grid grid-cols-3 gap-4 border border-border rounded-lg p-4 bg-muted/20">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 border border-border rounded-lg p-4 bg-muted/20">
                   <div>
                     <p className="text-sm text-muted-foreground">Total Revenue</p>
-                    <p className="text-xl font-bold text-green-500">
-                      {userMargin.revenue_by_currency?.length
-                        ? userMargin.revenue_by_currency.map((r: any) => r.display).join(" · ")
-                        : "—"}
+                    <p className="text-xl font-bold text-foreground">
+                      ${(userMargin.gross_revenue_usd ?? 0).toFixed(2)}
                     </p>
-                    {userMargin.net_revenue_usd != null && (
+                    {userMargin.paddle_and_tax_usd > 0 && (
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Net ${userMargin.net_revenue_usd.toFixed(2)}
+                        Paddle &amp; tax: ${(userMargin.paddle_and_tax_usd ?? 0).toFixed(2)}
                       </p>
                     )}
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Net Revenue</p>
+                    <p className="text-xl font-bold text-emerald-500">
+                      ${(userMargin.net_revenue_usd ?? 0).toFixed(2)}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      After fee &amp; tax
+                    </p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Est. Cost</p>
@@ -226,7 +233,7 @@ export function UserProfileModal({ userId, onClose }: UserProfileModalProps) {
                       <p
                         className={`text-xl font-bold ${
                           (userMargin.estimated_margin_usd ?? 0) >= 0
-                            ? "text-green-500"
+                            ? "text-emerald-500"
                             : "text-destructive"
                         }`}
                       >
@@ -288,7 +295,8 @@ export function UserProfileModal({ userId, onClose }: UserProfileModalProps) {
                       <thead className="bg-muted/50 text-muted-foreground uppercase text-[10px]">
                         <tr>
                           <th className="px-4 py-2 font-medium">Status</th>
-                          <th className="px-4 py-2 font-medium">Amount</th>
+                          <th className="px-4 py-2 font-medium">Total (USD)</th>
+                          <th className="px-4 py-2 font-medium">Net (USD)</th>
                           <th className="px-4 py-2 font-medium">Plan</th>
                           <th className="px-4 py-2 font-medium">Date</th>
                         </tr>
@@ -301,8 +309,26 @@ export function UserProfileModal({ userId, onClose }: UserProfileModalProps) {
                                 {tx.status}
                               </span>
                             </td>
-                            <td className="px-4 py-2 font-mono">
-                              {formatAmount(tx.amount_minor, tx.currency_code)}
+                            <td
+                              className="px-4 py-2 font-mono"
+                              title={
+                                tx.currency_code && tx.currency_code !== "USD"
+                                  ? `Charged: ${formatAmount(tx.amount_minor, tx.currency_code)}`
+                                  : undefined
+                              }
+                            >
+                              {tx.gross_usd != null ? (
+                                `$${tx.gross_usd.toFixed(2)}`
+                              ) : (
+                                <span className="text-xs text-muted-foreground italic">Converting…</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-2 font-mono text-emerald-500 font-medium">
+                              {tx.net_usd != null ? (
+                                `$${tx.net_usd.toFixed(2)}`
+                              ) : (
+                                <span className="text-xs text-muted-foreground italic">Converting…</span>
+                              )}
                             </td>
                             <td className="px-4 py-2 text-muted-foreground text-xs">
                               {tx.plan_name ?? tx.plan_code ?? tx.module_code ?? "-"}
