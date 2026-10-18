@@ -34,29 +34,88 @@ import {
   LabelList,
 } from "recharts";
 import { DataTable, type Column } from "@/components/ui/data-table";
+import { DatePickerWithRange } from "@/components/ui/date-range-picker";
+import { DateRange } from "react-day-picker";
+import { format } from "date-fns";
 
 export default function AdminDashboard() {
   const [overviewData, setOverviewData] = useState<any>(null);
   const [revenueData, setRevenueData] = useState<any[]>([]);
-  const [daysFilter, setDaysFilter] = useState<number>(30);
+  const [periodPreset, setPeriodPreset] = useState<"all" | "this_month" | "30d" | "custom">("all");
+  const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>(undefined);
   const [creditFlowData, setCreditFlowData] = useState<any>(null);
   const [moduleUsageData, setModuleUsageData] = useState<any[]>([]);
   const [planSalesData, setPlanSalesData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const getPeriodParams = () => {
+    const now = new Date();
+    if (periodPreset === "this_month") {
+      const from = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      const to = new Date(now);
+      to.setHours(23, 59, 59, 999);
+      const daysCount = Math.max(1, Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)));
+      return {
+        since: from.toISOString(),
+        until: to.toISOString(),
+        label: "This month",
+        chartDays: daysCount,
+      };
+    }
+    if (periodPreset === "30d") {
+      const from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      from.setHours(0, 0, 0, 0);
+      const to = new Date(now);
+      to.setHours(23, 59, 59, 999);
+      return {
+        since: from.toISOString(),
+        until: to.toISOString(),
+        label: "Last 30 days",
+        chartDays: 30,
+      };
+    }
+    if (periodPreset === "custom") {
+      if (customDateRange?.from) {
+        const from = new Date(customDateRange.from);
+        from.setHours(0, 0, 0, 0);
+        let to = from;
+        if (customDateRange.to) {
+          to = new Date(customDateRange.to);
+          to.setHours(23, 59, 59, 999);
+        } else {
+          to = new Date(from);
+          to.setHours(23, 59, 59, 999);
+        }
+        const daysCount = Math.max(1, Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)));
+        const label = customDateRange.to
+          ? `${format(customDateRange.from, "LLL dd")} - ${format(customDateRange.to, "LLL dd")}`
+          : format(customDateRange.from, "LLL dd");
+        return {
+          since: from.toISOString(),
+          until: to.toISOString(),
+          label,
+          chartDays: daysCount,
+        };
+      }
+      return { since: undefined, until: undefined, label: "Custom", chartDays: 30 };
+    }
+    return { since: undefined, until: undefined, label: "All time", chartDays: 365 };
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         const { getAccessToken } = await import("@/lib/auth");
         const token = getAccessToken() || undefined;
+        const { since, until, chartDays } = getPeriodParams();
 
         const results = await Promise.allSettled([
-          admin.overview(token, daysFilter),
-          admin.revenue(token, daysFilter),
-          admin.creditFlow(token, daysFilter),
-          admin.moduleUsage(token, daysFilter),
-          admin.planSales(token, daysFilter),
+          admin.overview(token, { since, until }),
+          admin.revenue(token, chartDays),
+          admin.creditFlow(token, chartDays),
+          admin.moduleUsage(token),
+          admin.planSales(token),
         ]);
 
         const overviewRes =
@@ -146,7 +205,7 @@ export default function AdminDashboard() {
     };
 
     fetchData();
-  }, [daysFilter]);
+  }, [periodPreset, customDateRange]);
 
   if (loading) {
     return (
@@ -210,24 +269,71 @@ export default function AdminDashboard() {
     },
   ];
 
+  const { label: periodLabel } = getPeriodParams();
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 flex-wrap">
         <div>
           <h1 className="text-3xl font-bold tracking-tight mb-1">Dashboard</h1>
           <p className="text-muted-foreground">
             Overview of platform metrics and revenue.
           </p>
         </div>
-        <select
-          value={daysFilter}
-          onChange={(e) => setDaysFilter(Number(e.target.value))}
-          className="px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-        >
-          <option value={7}>Last 7 days</option>
-          <option value={30}>Last 30 days</option>
-          <option value={90}>Last 90 days</option>
-        </select>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="inline-flex bg-muted/40 p-1 rounded-lg border border-border">
+            <button
+              type="button"
+              onClick={() => setPeriodPreset("all")}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                periodPreset === "all"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              All time
+            </button>
+            <button
+              type="button"
+              onClick={() => setPeriodPreset("this_month")}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                periodPreset === "this_month"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              This month
+            </button>
+            <button
+              type="button"
+              onClick={() => setPeriodPreset("30d")}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                periodPreset === "30d"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Last 30 days
+            </button>
+            <button
+              type="button"
+              onClick={() => setPeriodPreset("custom")}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                periodPreset === "custom"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Custom range
+            </button>
+          </div>
+          {periodPreset === "custom" && (
+            <DatePickerWithRange
+              date={customDateRange}
+              setDate={setCustomDateRange}
+            />
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -247,30 +353,26 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        {/* Est. Revenue */}
+        {/* Net Revenue */}
         <Card className="hover:border-primary/50 transition-colors">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Est. Revenue</CardTitle>
+            <CardTitle className="text-sm font-medium">Net Revenue</CardTitle>
             <DollarSign className="h-4 w-4 text-emerald-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-emerald-500">
-              {(overviewData?.revenue_by_currency || []).find(
-                (r: any) => r.currency_code === overviewData?.revenue_currency,
-              )?.display ?? `${overviewData?.revenue_currency || "USD"} 0`}
+              ${(overviewData?.net_revenue_usd ?? 0).toFixed(2)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Lifetime {overviewData?.revenue_currency || "USD"}
+              {periodLabel} · Net, all currencies, after tax and Paddle fees
             </p>
-            {overviewData?.revenue_is_partial && (
+            {overviewData?.revenue_by_currency?.length > 0 && (
               <p className="text-xs text-muted-foreground mt-1">
-                plus{" "}
-                {(overviewData?.revenue_by_currency || [])
-                  .filter(
+                {(overviewData.revenue_by_currency || [])
+                  .map(
                     (r: any) =>
-                      r.currency_code !== overviewData?.revenue_currency,
+                      `${r.display}${r.transactions != null ? ` (${r.transactions})` : ""}`,
                   )
-                  .map((r: any) => r.display)
                   .join(" · ")}
               </p>
             )}
@@ -297,19 +399,49 @@ export default function AdminDashboard() {
         <Card className="hover:border-primary/50 transition-colors">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Est. Margin</CardTitle>
-            <TrendingUp className="h-4 w-4 text-emerald-500" />
+            <TrendingUp
+              className={`h-4 w-4 ${
+                (overviewData?.estimated_margin_usd ?? 0) >= 0
+                  ? "text-emerald-500"
+                  : "text-destructive"
+              }`}
+            />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-emerald-500">
-              ${overviewData?.estimated_margin_usd?.toFixed(2) || "0.00"}
+            <div
+              className={`text-2xl font-bold ${
+                (overviewData?.estimated_margin_usd ?? 0) >= 0
+                  ? "text-emerald-500"
+                  : "text-destructive"
+              }`}
+            >
+              ${(overviewData?.estimated_margin_usd ?? 0).toFixed(2)}
+              <span className="ml-2 text-sm font-medium text-muted-foreground">
+                {overviewData?.margin_percent != null
+                  ? `${overviewData.margin_percent}%`
+                  : "—"}
+              </span>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Cost: ${overviewData?.estimated_cost_usd?.toFixed(2) || "0.00"}
+            <p
+              className="text-xs text-muted-foreground mt-1"
+              title={
+                overviewData?.cost_paid_usage_usd != null &&
+                overviewData?.cost_free_usage_usd != null
+                  ? `Paid usage $${overviewData.cost_paid_usage_usd.toFixed(2)} + free usage $${overviewData.cost_free_usage_usd.toFixed(2)} = $${(overviewData.estimated_cost_usd ?? 0).toFixed(2)}${overviewData.cost_per_credit_usd != null ? `, at $${overviewData.cost_per_credit_usd} per credit` : ""}`
+                  : undefined
+              }
+            >
+              Net revenue ${(overviewData?.net_revenue_usd ?? 0).toFixed(2)} · Cost $
+              {(overviewData?.estimated_cost_usd ?? 0).toFixed(2)}
             </p>
+            {overviewData?.margin_is_estimated && (
+              <p className="text-xs text-muted-foreground mt-1">
+                ${(overviewData?.net_revenue_estimated_usd ?? 0).toFixed(2)} of revenue converted at market rate
+              </p>
+            )}
             {overviewData?.margin_excludes_currencies?.length > 0 && (
               <p className="text-xs text-amber-500/80 mt-1">
-                excludes {overviewData.margin_excludes_currencies.join(", ")} —
-                no FX rate
+                Missing {overviewData.margin_excludes_currencies.join(", ")} — no exchange rate yet
               </p>
             )}
           </CardContent>

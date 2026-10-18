@@ -564,7 +564,19 @@ function AuditContent() {
                     Who
                   </div>
                   <div>
-                    {selectedRow.actor_email ?? (
+                    {selectedRow.actor_email ? (
+                      selectedRow.actor_user_id ? (
+                        <button
+                          type="button"
+                          className="text-primary hover:underline text-left"
+                          onClick={() => setProfileUserId(selectedRow.actor_user_id!)}
+                        >
+                          {selectedRow.actor_email}
+                        </button>
+                      ) : (
+                        selectedRow.actor_email
+                      )
+                    ) : (
                       <span className="italic text-muted-foreground">
                         deleted account
                       </span>
@@ -575,9 +587,16 @@ function AuditContent() {
                   <div className="text-xs text-muted-foreground uppercase font-medium mb-1">
                     Target
                   </div>
-                  <div>
-                    {TARGET_TYPE_LABELS[selectedRow.target_type] ??
-                      selectedRow.target_type}
+                  <div className="flex items-center gap-2">
+                    <span>
+                      {TARGET_TYPE_LABELS[selectedRow.target_type] ??
+                        selectedRow.target_type}
+                    </span>
+                    {!selectedRow.target_label && selectedRow.target_type === "user" && (
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                        {selectedRow.target_plan ?? "Free"}
+                      </Badge>
+                    )}
                   </div>
                 </div>
                 {selectedRow.target_label && (

@@ -50,10 +50,18 @@ const authConfig = (token?: string) =>
 
 export const admin = {
   // Analytics
-  overview: (token?: string, days?: number) =>
-    axiosMain
-      .get("/admin/analytics/overview", { ...authConfig(token), params: days ? { days } : undefined })
-      .then((r) => r.data),
+  overview: (
+    token?: string,
+    params?: { days?: number; since?: string; until?: string } | number,
+  ) => {
+    const queryParams = typeof params === "number" ? { days: params } : params;
+    return axiosMain
+      .get("/admin/analytics/overview", {
+        ...authConfig(token),
+        params: queryParams,
+      })
+      .then((r) => r.data);
+  },
   revenue: (token?: string, days?: number) =>
     axiosMain
       .get("/admin/analytics/revenue", { ...authConfig(token), params: days ? { days } : undefined })
@@ -102,9 +110,16 @@ export const admin = {
       .post(`/admin/users/${id}/credits`, { delta, reason, expires_in_days }, authConfig(token))
       .then((r) => r.data),
 
-  userMargin: (id: string, token?: string) =>
+  userMargin: (
+    id: string,
+    token?: string,
+    params?: { since?: string; until?: string },
+  ) =>
     axiosMain
-      .get(`/admin/analytics/users/${id}/margin`, authConfig(token))
+      .get(`/admin/analytics/users/${id}/margin`, {
+        ...authConfig(token),
+        params,
+      })
       .then((r) => r.data),
   reinstateUser: (id: string, reason: string, token?: string) =>
     axiosMain

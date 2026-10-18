@@ -67,7 +67,7 @@ export function UserProfileModal({ userId, onClose }: UserProfileModalProps) {
   if (!userId) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
       <div className="bg-card w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col rounded-lg shadow-lg border border-border relative">
         <div className="p-6 border-b border-border flex justify-between items-center">
           <div>
@@ -75,9 +75,11 @@ export function UserProfileModal({ userId, onClose }: UserProfileModalProps) {
               <h2 className="text-xl font-bold">
                 {userDetails?.full_name || "User"} Details
               </h2>
-              <Badge variant="outline">
-                {userDetails?.plan_name ?? "Free"}
-              </Badge>
+              {userDetails && (
+                <Badge variant="outline">
+                  {userDetails.plan_name ?? "Free"}
+                </Badge>
+              )}
             </div>
             <div className="flex items-center gap-2 mt-0.5">
               <p className="text-sm text-muted-foreground">
@@ -201,18 +203,41 @@ export function UserProfileModal({ userId, onClose }: UserProfileModalProps) {
                         ? userMargin.revenue_by_currency.map((r: any) => r.display).join(" · ")
                         : "—"}
                     </p>
+                    {userMargin.net_revenue_usd != null && (
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Net ${userMargin.net_revenue_usd.toFixed(2)}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Est. Cost</p>
                     <p className="text-xl font-bold text-orange-500">
                       ${(userMargin.estimated_cost_usd ?? 0).toFixed(2)}
                     </p>
+                    {userMargin.credits_free_used > 0 && (
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        includes {userMargin.credits_free_used} free credits
+                      </p>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Est. Margin</p>
-                    <p className={`text-xl font-bold ${userMargin.estimated_margin_usd > 0 ? "text-green-500" : "text-destructive"}`}>
-                      ${(userMargin.estimated_margin_usd ?? 0).toFixed(2)}
-                    </p>
+                    <div className="flex items-baseline gap-1.5">
+                      <p
+                        className={`text-xl font-bold ${
+                          (userMargin.estimated_margin_usd ?? 0) >= 0
+                            ? "text-green-500"
+                            : "text-destructive"
+                        }`}
+                      >
+                        ${(userMargin.estimated_margin_usd ?? 0).toFixed(2)}
+                      </p>
+                      {userMargin.margin_percent != null && (
+                        <span className="text-xs font-normal text-muted-foreground">
+                          {userMargin.margin_percent}%
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

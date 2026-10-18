@@ -60,12 +60,16 @@ export default function BillingOpsPage() {
 
   useEffect(() => {
     if (webhookDateRange?.from) {
-      setWebhookFilterSince(format(webhookDateRange.from, "yyyy-MM-dd"));
+      const from = new Date(webhookDateRange.from);
+      from.setHours(0, 0, 0, 0);
+      setWebhookFilterSince(from.toISOString());
     } else {
       setWebhookFilterSince("");
     }
     if (webhookDateRange?.to) {
-      setWebhookFilterUntil(format(webhookDateRange.to, "yyyy-MM-dd"));
+      const to = new Date(webhookDateRange.to);
+      to.setHours(23, 59, 59, 999);
+      setWebhookFilterUntil(to.toISOString());
     } else {
       setWebhookFilterUntil("");
     }
@@ -93,12 +97,16 @@ export default function BillingOpsPage() {
 
   useEffect(() => {
     if (txDateRange?.from) {
-      setTxFilterSince(txDateRange.from.toISOString());
+      const from = new Date(txDateRange.from);
+      from.setHours(0, 0, 0, 0);
+      setTxFilterSince(from.toISOString());
     } else {
       setTxFilterSince("");
     }
     if (txDateRange?.to) {
-      setTxFilterUntil(txDateRange.to.toISOString());
+      const to = new Date(txDateRange.to);
+      to.setHours(23, 59, 59, 999);
+      setTxFilterUntil(to.toISOString());
     } else {
       setTxFilterUntil("");
     }
@@ -118,12 +126,16 @@ export default function BillingOpsPage() {
 
   useEffect(() => {
     if (cbDateRange?.from) {
-      setCbFilterSince(cbDateRange.from.toISOString());
+      const from = new Date(cbDateRange.from);
+      from.setHours(0, 0, 0, 0);
+      setCbFilterSince(from.toISOString());
     } else {
       setCbFilterSince("");
     }
     if (cbDateRange?.to) {
-      setCbFilterUntil(cbDateRange.to.toISOString());
+      const to = new Date(cbDateRange.to);
+      to.setHours(23, 59, 59, 999);
+      setCbFilterUntil(to.toISOString());
     } else {
       setCbFilterUntil("");
     }
@@ -173,12 +185,8 @@ export default function BillingOpsPage() {
         const response = await admin.getWebhooks(token, currentPage, pageSize, {
           status: webhookFilterStatus,
           eventType: webhookFilterEvent,
-          since: webhookFilterSince
-            ? new Date(webhookFilterSince).toISOString()
-            : undefined,
-          until: webhookFilterUntil
-            ? new Date(webhookFilterUntil).toISOString()
-            : undefined,
+          since: webhookFilterSince || undefined,
+          until: webhookFilterUntil || undefined,
         });
         setWebhooks(response?.items || []);
         setTotalPages(response?.pages || 1);
@@ -362,6 +370,26 @@ export default function BillingOpsPage() {
       ),
     },
     {
+      key: "user",
+      header: "User",
+      render: (hook) =>
+        hook.user_email ? (
+          <button
+            type="button"
+            onClick={() => {
+              const uid = hook.user_id || hook.payload?.data?.custom_data?.user_id;
+              if (uid) openUserProfile(uid);
+            }}
+            className="text-xs text-primary hover:underline text-left truncate max-w-[160px]"
+            title={hook.user_email}
+          >
+            {hook.user_email}
+          </button>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        ),
+    },
+    {
       key: "provider_id",
       header: "Provider ID",
       render: (hook) => (
@@ -448,7 +476,7 @@ export default function BillingOpsPage() {
       {
         key: "plan",
         header: "Plan",
-        render: (tx) => <span className="text-sm">{tx.plan_name ?? "—"}</span>,
+        render: (tx) => <span className="text-sm">{tx.plan_name || "—"}</span>,
       },
       {
         key: "amount",
@@ -895,7 +923,7 @@ export default function BillingOpsPage() {
                         Extracted Details
                       </h3>
                       <div className="grid grid-cols-2 gap-4 text-sm">
-                        {(selectedWebhook.user_email || selectedWebhook.payload?.data?.custom_data?.user_id) && (
+                        {(selectedWebhook.user_email || selectedWebhook.user_id || selectedWebhook.payload?.data?.custom_data?.user_id) && (
                           <div>
                             <span className="text-muted-foreground block text-xs">
                               User
@@ -903,14 +931,17 @@ export default function BillingOpsPage() {
                             {selectedWebhook.user_email ? (
                               <button
                                 type="button"
-                                onClick={() => openUserProfile(selectedWebhook.user_id)}
+                                onClick={() => {
+                                  const uid = selectedWebhook.user_id || selectedWebhook.payload?.data?.custom_data?.user_id;
+                                  if (uid) openUserProfile(uid);
+                                }}
                                 className="text-sm text-primary hover:underline text-left break-all"
                               >
                                 {selectedWebhook.user_email}
                               </button>
                             ) : (
                               <span className="font-mono break-all text-xs">
-                                {selectedWebhook.payload?.data?.custom_data?.user_id}
+                                {selectedWebhook.user_id || selectedWebhook.payload?.data?.custom_data?.user_id}
                               </span>
                             )}
                           </div>
