@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { toast } from "sonner";
+import { getApiErrorDetail } from "@/lib/utils";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker";
 import { DateRange } from "react-day-picker";
 import { format } from "date-fns";
@@ -299,13 +300,14 @@ export default function BillingOpsPage() {
       const { getAccessToken } = await import("@/lib/auth");
       const token = getAccessToken() || undefined;
       await admin.refundTransaction(selectedTx.id, refundReason, token);
-      toast.success("Refund requested — credits will be taken back when Paddle confirms");
+      toast.success("Refund sent to Stripe — credits will be taken back when Stripe confirms");
       setShowRefundModal(false);
       setRefundReason("");
       fetchData();
     } catch (err) {
       console.error("Failed to refund transaction", err);
-      toast.error("Failed to refund transaction");
+      // The server says why: a Paddle-era sale, a free order, or Stripe refusing.
+      toast.error(getApiErrorDetail(err));
     } finally {
       setActionLoading(null);
     }
@@ -647,7 +649,7 @@ export default function BillingOpsPage() {
             </h2>
             <p className="text-sm text-muted-foreground">
               {activeTab === "webhooks" &&
-                "Logs from Paddle or Stripe integration"}
+                "Events received from Stripe"}
               {activeTab === "transactions" &&
                 "Real-money payments on the platform"}
               {activeTab === "chargebacks" &&
@@ -688,7 +690,7 @@ export default function BillingOpsPage() {
           <div className="flex flex-wrap gap-3 items-center">
             <input
               type="text"
-              placeholder="Search email, name or Paddle ID"
+              placeholder="Search email, name or payment ID (pi_…)"
               value={txSearchInput}
               onChange={(e) => setTxSearchInput(e.target.value)}
               className="px-3 py-1.5 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary w-72"
@@ -737,7 +739,7 @@ export default function BillingOpsPage() {
           <div className="flex flex-wrap gap-3 items-center">
             <input
               type="text"
-              placeholder="Search email, name or Paddle ID"
+              placeholder="Search email, name or payment ID (pi_…)"
               value={cbSearchInput}
               onChange={(e) => setCbSearchInput(e.target.value)}
               className="px-3 py-1.5 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary w-72"
@@ -800,7 +802,9 @@ export default function BillingOpsPage() {
                   ? ` (${formatAmount(selectedTx.amount_minor, selectedTx.currency_code)})`
                   : ""}
               </strong>
-              . This action cannot be undone.
+              . The full amount goes back to the customer&apos;s card now, through
+              Stripe, and their credits from this purchase are taken back. This
+              cannot be undone.
             </p>
             <div className="space-y-4">
               <div>
