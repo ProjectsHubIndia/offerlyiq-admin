@@ -2,11 +2,12 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   LayoutDashboard,
   Users,
   Package,
+  Layers,
   Tags,
   Settings,
   CreditCard,
@@ -24,6 +25,8 @@ const navItems = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
   { href: "/users", label: "Users", icon: Users },
   { href: "/plans", label: "Plans", icon: Package },
+  { href: "/application-packages", label: "Application Packages", icon: Layers },
+  { href: "/application-pricing", label: "Application Pricing", icon: Tags },
   { href: "/catalog", label: "Catalog", icon: Settings },
   { href: "/discounts", label: "Discounts", icon: Tags },
   { href: "/billing", label: "Billing Ops", icon: CreditCard },
@@ -37,6 +40,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [openTickets, setOpenTickets] = useState(0);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const sidebarRef = useRef<HTMLElement>(null);
   const session = useAdminSession();
   const user = session?.user;
 
@@ -57,6 +62,33 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     load();
     return () => { cancelled = true; };
   }, [pathname]);
+
+  useEffect(() => {
+    if (!isSidebarOpen) return;
+    const sidebar = sidebarRef.current;
+    const controls = sidebar?.querySelectorAll<HTMLElement>('a[href], button:not([disabled])');
+    controls?.[0]?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!window.matchMedia("(max-width: 1023px)").matches) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setIsSidebarOpen(false);
+        menuButtonRef.current?.focus();
+      } else if (event.key === "Tab" && controls?.length) {
+        const first = controls[0];
+        const last = controls[controls.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [isSidebarOpen]);
 
   const handleLogout = async () => {
     try {
@@ -88,9 +120,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Sidebar */}
-      <aside 
+      <aside
+        id="admin-navigation"
+        ref={sidebarRef}
+        aria-label="Admin navigation"
         className={`fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transform transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 ${
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+          isSidebarOpen ? "visible translate-x-0" : "invisible -translate-x-full lg:visible"
         }`}
       >
         <div className="flex items-center justify-between h-16 px-6 border-b border-border">
@@ -98,8 +133,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             <LogoSplit className="h-8 w-auto" />
           </Link>
           <button 
+            aria-label="Close navigation"
             className="lg:hidden p-2 text-muted-foreground hover:text-foreground"
-            onClick={() => setIsSidebarOpen(false)}
+            onClick={() => { setIsSidebarOpen(false); menuButtonRef.current?.focus(); }}
           >
             <X className="w-5 h-5" />
           </button>
@@ -117,7 +153,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   onClick={() => setIsSidebarOpen(false)}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                     isActive
-                      ? "bg-primary/10 text-primary"
+                      ? "bg-primary/10 text-orange-800 dark:text-primary"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
                   }`}
                 >
@@ -141,7 +177,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                 </span>
                 <div>
                   <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${
-                    user.role === 'superadmin' ? 'bg-purple-500/20 text-purple-600' : 'bg-blue-500/20 text-blue-600'
+                    user.role === 'superadmin' ? 'bg-purple-500/20 text-purple-800 dark:text-purple-300' : 'bg-blue-500/20 text-blue-700 dark:text-blue-300'
                   }`}>
                     {user.role}
                   </span>
@@ -150,7 +186,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             )}
             <button
               onClick={handleLogout}
-              className="flex items-center w-full gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
+              className="flex items-center w-full gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-700 dark:text-red-400 hover:bg-destructive/10 transition-colors"
             >
               <LogOut className="w-5 h-5" />
               Sign Out
@@ -164,6 +200,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         {/* Mobile header */}
         <header className="h-16 flex items-center px-4 border-b border-border bg-card lg:hidden">
           <button
+            ref={menuButtonRef}
+            aria-label="Open navigation"
+            aria-expanded={isSidebarOpen}
+            aria-controls="admin-navigation"
             onClick={() => setIsSidebarOpen(true)}
             className="p-2 mr-4 text-muted-foreground hover:text-foreground rounded-md"
           >

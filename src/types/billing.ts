@@ -10,6 +10,8 @@ export interface BillingPlan {
   description: string;
   credits_granted: number;
   credit_validity_days: number;
+  application_units: number | null;
+  application_validity_days: number | null;
   badge: string;
   prices: PlanPrice[];
   features: string[];
