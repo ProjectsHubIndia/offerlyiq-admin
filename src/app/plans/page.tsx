@@ -32,6 +32,7 @@ import { ConfirmAction } from "@/components/ConfirmAction";
 import { toast } from "sonner";
 import { useAdminSession } from "@/components/layout/admin-session-provider";
 import { getApiErrorDetail, getApiErrorStatus } from "@/lib/utils";
+import { parseApplicationBenefits } from "@/lib/plan-benefits";
 
 // Mirrors SUPPORTED in the backend's app/core/currency.py, which refuses anything else.
 // Not here: HUF and TWD (Stripe counts their amounts differently), RUB and CNY (Stripe
@@ -43,7 +44,7 @@ const SUPPORTED_CURRENCIES = [
 ];
 
 const CURRENCY_EXPONENTS: Record<string, number> = {
-  JPY: 0, KRW: 0, TWD: 0, KWD: 3,
+  CLP: 0, JPY: 0, KRW: 0, VND: 0, TWD: 0, KWD: 3,
 };
 
 const CURRENCY_SYMBOLS: Record<string, string> = {
@@ -55,7 +56,7 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
 };
 
 const EUROZONE_COUNTRIES = [
-  "AT","BE","CY","DE","EE","ES","FI","FR","GR","HR",
+  "AT","BE","BG","CY","DE","EE","ES","FI","FR","GR","HR",
   "IE","IT","LT","LU","LV","MT","NL","PT","SI","SK",
 ];
 
@@ -71,10 +72,42 @@ function toMinor(major: number, code: string): number {
   return Math.round(major * Math.pow(10, getCurrencyExponent(code)));
 }
 
+function ApplicationBenefitFields({ id, units, days, onChange }: {
+  id: string;
+  units: string;
+  days: string;
+  onChange: (field: "application_units" | "application_validity_days", value: string) => void;
+}) {
+  return (
+    <fieldset className="space-y-3 rounded-md border border-border p-3">
+      <legend className="px-1 text-sm font-medium">Included applications</legend>
+      <p className="text-xs text-muted-foreground">Blank quantity leaves benefits unconfigured and blocks new unified purchases. Existing purchases keep their original benefits.</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label htmlFor={`${id}-units`} className="block text-sm font-medium mb-1">Application quantity</label>
+          <input id={`${id}-units`} type="number" min="1" max="1000000" step="1" value={units}
+            onChange={(event) => onChange("application_units", event.target.value)}
+            className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm" />
+        </div>
+        <div>
+          <label htmlFor={`${id}-days`} className="block text-sm font-medium mb-1">Application validity (days)</label>
+          <input id={`${id}-days`} type="number" min="1" max="36500" step="1" value={days}
+            aria-describedby={`${id}-expiry`}
+            onChange={(event) => onChange("application_validity_days", event.target.value)}
+            className="w-full px-3 py-2 bg-background border border-border rounded-md text-sm" />
+          <p id={`${id}-expiry`} className="mt-1 text-xs text-muted-foreground">Blank means no expiry. Otherwise, validity starts at successful payment.</p>
+        </div>
+      </div>
+    </fieldset>
+  );
+}
+
 export default function PlansPage() {
   const { user: currentUser } = useAdminSession();
+  const canManageBenefits = currentUser?.role === "superadmin";
   const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [plansError, setPlansError] = useState<string | null>(null);
 
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
 
@@ -103,6 +136,8 @@ export default function PlansPage() {
     billing_type: "one_time",
     credits_granted: 0,
     credit_validity_days: 30,
+    application_units: "",
+    application_validity_days: "",
     badge: "",
     display_order: 0,
     is_public: true,
@@ -130,6 +165,7 @@ export default function PlansPage() {
 
   const fetchPlans = async () => {
     setLoading(true);
+    setPlansError(null);
     try {
       const { getAccessToken } = await import("@/lib/auth");
       const token = getAccessToken() || undefined;
@@ -137,6 +173,7 @@ export default function PlansPage() {
       setPlans(response || []);
     } catch (err) {
       console.error("Failed to fetch plans", err);
+      setPlansError(getApiErrorDetail(err));
     } finally {
       setLoading(false);
     }
@@ -545,6 +582,7 @@ export default function PlansPage() {
   };
 
   const handleCreatePlan = async () => {
+    if (!canManageBenefits) return;
     setCreatePlanLoading(true);
     try {
       const { getAccessToken } = await import("@/lib/auth");
@@ -552,6 +590,7 @@ export default function PlansPage() {
       await admin.createPlan(
         {
           ...createPlanData,
+          ...parseApplicationBenefits(createPlanData.application_units, createPlanData.application_validity_days),
           credits_granted: Number(createPlanData.credits_granted) || 0,
           credit_validity_days: createPlanData.credit_validity_days ? Number(createPlanData.credit_validity_days) : null,
           display_order: Number(createPlanData.display_order) || 0,
@@ -567,6 +606,8 @@ export default function PlansPage() {
         billing_type: "one_time",
         credits_granted: 0,
         credit_validity_days: 30,
+        application_units: "",
+        application_validity_days: "",
         badge: "",
         display_order: 0,
         is_public: true,
@@ -581,12 +622,15 @@ export default function PlansPage() {
   };
 
   const handleOpenEditPlan = (plan: any) => {
+    if (!canManageBenefits) return;
     setSelectedPlan(plan);
     setEditPlanData({
       name: plan.name,
       description: plan.description || "",
       credits_granted: plan.credits_granted,
       credit_validity_days: plan.credit_validity_days || 0,
+      application_units: String(plan.application_units ?? ""),
+      application_validity_days: String(plan.application_validity_days ?? ""),
       badge: plan.badge || "",
       display_order: plan.display_order,
       is_public: plan.is_public,
@@ -595,13 +639,14 @@ export default function PlansPage() {
   };
 
   const handleSaveEditPlan = async () => {
-    if (!selectedPlan) return;
+    if (!selectedPlan || !canManageBenefits) return;
     setEditPlanLoading(true);
     try {
       const { getAccessToken } = await import("@/lib/auth");
       const token = getAccessToken() || undefined;
       const data = {
         ...editPlanData,
+        ...parseApplicationBenefits(editPlanData.application_units, editPlanData.application_validity_days),
         credits_granted: Number(editPlanData.credits_granted) || 0,
         credit_validity_days: editPlanData.credit_validity_days ? Number(editPlanData.credit_validity_days) : null,
         display_order: Number(editPlanData.display_order) || 0,
@@ -624,19 +669,26 @@ export default function PlansPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight mb-1">Plans</h1>
           <p className="text-muted-foreground">
-            Manage subscription tiers and pricing.
+            Manage plan benefits and approved regional pricing. Benefit changes apply to future purchases after publication.
           </p>
         </div>
-        <Button className="gap-2" onClick={() => setShowCreatePlanModal(true)}>
+        <Button className="gap-2" disabled={!canManageBenefits} onClick={() => setShowCreatePlanModal(true)}>
           <Plus className="w-4 h-4" /> Create Plan
         </Button>
       </div>
+
+      {!canManageBenefits && <p className="text-sm text-muted-foreground">Plan benefits, prices and publication require a Super Admin.</p>}
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {loading ? (
           <div className="col-span-full flex flex-col items-center justify-center p-12 text-muted-foreground bg-card rounded-xl border border-border shadow-sm">
             <Loader2 className="w-8 h-8 animate-spin mb-4" />
             <p>Loading plans...</p>
+          </div>
+        ) : plansError ? (
+          <div role="alert" className="col-span-full rounded-xl border border-border p-6">
+            <p>Unable to load plans: {plansError}</p>
+            <Button variant="outline" className="mt-3" onClick={fetchPlans}>Retry plans</Button>
           </div>
         ) : plans.length === 0 ? (
           <div className="col-span-full flex flex-col items-center justify-center p-12 text-muted-foreground bg-card rounded-xl border border-border border-dashed">
@@ -645,7 +697,7 @@ export default function PlansPage() {
               No plans found
             </h3>
             <p>Get started by creating your first subscription plan.</p>
-            <Button variant="outline" className="mt-4 gap-2">
+            <Button variant="outline" className="mt-4 gap-2" disabled={!canManageBenefits} onClick={() => setShowCreatePlanModal(true)}>
               <Plus className="w-4 h-4" /> Create Plan
             </Button>
           </div>
@@ -726,6 +778,15 @@ export default function PlansPage() {
                         {plan.credits_granted} credits
                       </span>
                     </div>
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">Included applications: </span>
+                      <span className="font-medium">{plan.application_units ?? "Not configured"}</span>
+                      {plan.application_units != null && (
+                        <p className="text-xs text-muted-foreground">
+                          {plan.application_validity_days == null ? "No expiry" : `Valid for ${plan.application_validity_days} days from payment`}
+                        </p>
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex gap-2 mt-auto pt-4 border-t border-border flex-wrap">
@@ -734,17 +795,17 @@ export default function PlansPage() {
                       size="sm"
                       className="flex-1 min-w-[30%] gap-2"
                       onClick={() => handleOpenEditPlan(plan)}
-                      disabled={isPublished || isArchived}
+                      disabled={!canManageBenefits || isPublished || isArchived}
                       title={isPublished ? "Unpublish to edit" : undefined}
                     >
-                      <Settings className="w-3.5 h-3.5" /> Info
+                      <Settings className="w-3.5 h-3.5" /> Benefits
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       className="flex-1 min-w-[30%] gap-2"
                       onClick={() => handleOpenPrices(plan)}
-                      disabled={isArchived}
+                      disabled={!canManageBenefits || isArchived}
                       title="Edit Prices"
                     >
                       <DollarSign className="w-3.5 h-3.5" /> Prices
@@ -754,7 +815,7 @@ export default function PlansPage() {
                       size="sm"
                       className="flex-1 min-w-[30%] gap-2"
                       onClick={() => handleOpenFeatures(plan)}
-                      disabled={isPublished || isArchived}
+                      disabled={!canManageBenefits || isPublished || isArchived}
                       title={isPublished ? "Unpublish to edit" : undefined}
                     >
                       <ListChecks className="w-3.5 h-3.5" /> Features
@@ -773,7 +834,7 @@ export default function PlansPage() {
                       size="sm"
                       className={`flex-1 min-w-[30%] gap-2 ${isPublished ? "hover:bg-destructive/10 hover:text-destructive hover:border-destructive" : ""}`}
                       onClick={() => handleTogglePublish(plan)}
-                      disabled={isArchived}
+                      disabled={!canManageBenefits || isArchived}
                     >
                       {isPublished ? (
                         <>
@@ -791,6 +852,7 @@ export default function PlansPage() {
                         size="sm"
                         className="flex-1 min-w-[30%] gap-2 text-destructive hover:bg-destructive/10 hover:text-destructive"
                         onClick={() => handleArchive(plan)}
+                        disabled={!canManageBenefits}
                         title="Archive Plan"
                       >
                         <X className="w-3.5 h-3.5" /> Archive
@@ -1008,7 +1070,7 @@ export default function PlansPage() {
                               }}
                               className="text-[10px] px-1.5 py-0.5 rounded bg-muted hover:bg-muted/80 text-muted-foreground font-medium whitespace-nowrap"
                             >
-                              + Eurozone (20)
+                              + Eurozone ({EUROZONE_COUNTRIES.length})
                             </button>
                           )}
                         </div>
@@ -1182,7 +1244,7 @@ export default function PlansPage() {
       {/* Create Plan Modal */}
       {showCreatePlanModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-card w-full max-w-2xl p-6 rounded-lg shadow-lg border border-border relative max-h-[90vh] overflow-y-auto">
+          <div role="dialog" aria-modal="true" aria-label="Create plan" className="bg-card w-full max-w-2xl p-6 rounded-lg shadow-lg border border-border relative max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setShowCreatePlanModal(false)}
               className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
@@ -1313,6 +1375,10 @@ export default function PlansPage() {
               </div>
             </div>
 
+            <ApplicationBenefitFields id="create-benefits"
+              units={createPlanData.application_units} days={createPlanData.application_validity_days}
+              onChange={(field, value) => setCreatePlanData({ ...createPlanData, [field]: value })} />
+
             <div className="flex justify-end gap-2 mt-6">
               <Button
                 variant="outline"
@@ -1320,7 +1386,7 @@ export default function PlansPage() {
               >
                 Cancel
               </Button>
-              <Button onClick={handleCreatePlan} disabled={createPlanLoading}>
+              <Button onClick={handleCreatePlan} disabled={createPlanLoading || !canManageBenefits}>
                 {createPlanLoading && (
                   <Loader2 className="w-4 h-4 animate-spin mr-2" />
                 )}
@@ -1334,7 +1400,7 @@ export default function PlansPage() {
       {/* Edit Plan Modal */}
       {showEditPlanModal && selectedPlan && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-card w-full max-w-2xl p-6 rounded-lg shadow-lg border border-border relative max-h-[90vh] overflow-y-auto">
+          <div role="dialog" aria-modal="true" aria-label={`Edit benefits: ${selectedPlan.name}`} className="bg-card w-full max-w-2xl p-6 rounded-lg shadow-lg border border-border relative max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setShowEditPlanModal(false)}
               className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
@@ -1342,7 +1408,7 @@ export default function PlansPage() {
               <X className="w-5 h-5" />
             </button>
             <h2 className="text-xl font-bold mb-4">
-              Edit Info: {selectedPlan.name}
+              Edit Benefits: {selectedPlan.name}
             </h2>
 
             <div className="space-y-4">
@@ -1426,6 +1492,10 @@ export default function PlansPage() {
               </div>
             </div>
 
+            <ApplicationBenefitFields id="edit-benefits"
+              units={editPlanData.application_units} days={editPlanData.application_validity_days}
+              onChange={(field, value) => setEditPlanData({ ...editPlanData, [field]: value })} />
+
             <div className="flex justify-end gap-2 mt-6">
               <Button
                 variant="outline"
@@ -1433,7 +1503,7 @@ export default function PlansPage() {
               >
                 Cancel
               </Button>
-              <Button onClick={handleSaveEditPlan} disabled={editPlanLoading}>
+              <Button onClick={handleSaveEditPlan} disabled={editPlanLoading || !canManageBenefits}>
                 {editPlanLoading && (
                   <Loader2 className="w-4 h-4 animate-spin mr-2" />
                 )}

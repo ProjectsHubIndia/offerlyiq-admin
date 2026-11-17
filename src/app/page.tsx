@@ -450,13 +450,22 @@ export default function AdminDashboard() {
               title={
                 overviewData?.cost_paid_usage_usd != null &&
                 overviewData?.cost_free_usage_usd != null
-                  ? `Paid usage $${overviewData.cost_paid_usage_usd.toFixed(2)} + free usage $${overviewData.cost_free_usage_usd.toFixed(2)} = $${(overviewData.estimated_cost_usd ?? 0).toFixed(2)}${overviewData.cost_per_credit_usd != null ? `, at $${overviewData.cost_per_credit_usd} per credit` : ""}`
+                  ? `AI paid usage $${overviewData.cost_paid_usage_usd.toFixed(2)} + AI free usage $${overviewData.cost_free_usage_usd.toFixed(2)} + applications $${(overviewData.application_estimated_cost_usd ?? 0).toFixed(2)} = estimated cost $${(overviewData.estimated_cost_usd ?? 0).toFixed(2)}`
                   : undefined
               }
             >
-              Net revenue ${(overviewData?.net_revenue_usd ?? 0).toFixed(2)} · Cost $
+              Net revenue ${(overviewData?.net_revenue_usd ?? 0).toFixed(2)} · Estimated cost $
               {(overviewData?.estimated_cost_usd ?? 0).toFixed(2)}
             </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Applications: {overviewData?.application_cost_units ?? 0} internal cost units, estimated ${(overviewData?.application_estimated_cost_usd ?? 0).toFixed(3)}.
+              {" "}Historical rates are preserved. These estimates are not actual provider charges or AI wallet deductions.
+            </p>
+            {(overviewData?.application_unpriced_units ?? 0) > 0 && (
+              <p className="text-xs text-amber-500/80 mt-1">
+                {overviewData.application_unpriced_units} historical submissions have no recorded cost rate and are excluded from the cost estimate.
+              </p>
+            )}
             {overviewData?.margin_is_estimated && (
               <p className="text-xs text-muted-foreground mt-1">
                 ${(overviewData?.net_revenue_estimated_usd ?? 0).toFixed(2)} of revenue converted at market rate
