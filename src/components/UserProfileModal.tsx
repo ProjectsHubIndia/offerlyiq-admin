@@ -203,7 +203,7 @@ export function UserProfileModal({ userId, onClose }: UserProfileModalProps) {
                     </p>
                     {userMargin.paddle_and_tax_usd > 0 && (
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Paddle &amp; tax: ${(userMargin.paddle_and_tax_usd ?? 0).toFixed(2)}
+                        Stripe fees &amp; tax: ${(userMargin.paddle_and_tax_usd ?? 0).toFixed(2)}
                       </p>
                     )}
                   </div>

@@ -394,7 +394,7 @@ export default function AdminDashboard() {
               ${(overviewData?.net_revenue_usd ?? 0).toFixed(2)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              After Paddle fees &amp; tax (${(overviewData?.paddle_and_tax_usd ?? 0).toFixed(2)})
+              After Stripe fees &amp; tax (${(overviewData?.paddle_and_tax_usd ?? 0).toFixed(2)})
             </p>
             <p className="text-[11px] text-muted-foreground/80 mt-0.5">
               {periodLabel} · Net kept

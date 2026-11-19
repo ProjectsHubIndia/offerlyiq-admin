@@ -33,10 +33,13 @@ import { toast } from "sonner";
 import { useAdminSession } from "@/components/layout/admin-session-provider";
 import { getApiErrorDetail, getApiErrorStatus } from "@/lib/utils";
 
+// Mirrors SUPPORTED in the backend's app/core/currency.py, which refuses anything else.
+// Not here: HUF and TWD (Stripe counts their amounts differently), RUB and CNY (Stripe
+// Managed Payments cannot sell to Russia or China).
 const SUPPORTED_CURRENCIES = [
-  "ARS","AUD","BRL","CAD","CHF","CNY","COP","CZK","DKK","EUR",
-  "GBP","HKD","HUF","ILS","INR","JPY","KRW","MXN","NOK","NZD",
-  "PLN","RUB","SEK","SGD","THB","TRY","TWD","UAH","USD","VND","ZAR",
+  "ARS","AUD","BRL","CAD","CHF","CLP","COP","CZK","DKK","EUR",
+  "GBP","HKD","ILS","INR","JPY","KRW","MXN","NOK","NZD","PEN",
+  "PLN","SEK","SGD","THB","TRY","UAH","USD","VND","ZAR",
 ];
 
 const CURRENCY_EXPONENTS: Record<string, number> = {
@@ -311,7 +314,7 @@ export default function PlansPage() {
         toast.error("Every row needs a currency"); return;
       }
       if (!SUPPORTED_CURRENCIES.includes(p.currency_code)) {
-        toast.error(`Paddle cannot charge in ${p.currency_code}.`); return;
+        toast.error(`Prices cannot be set in ${p.currency_code}.`); return;
       }
       if (usedCurrencies.includes(p.currency_code)) {
         toast.error("Duplicate currency in price list"); return;
@@ -372,12 +375,28 @@ export default function PlansPage() {
       const token = getAccessToken() || undefined;
 
       // Step 1: Unpublish if currently live (PUT requires draft status)
-      if (selectedPlan.status === "published") {
+      const wasPublished = selectedPlan.status === "published";
+      if (wasPublished) {
         await admin.unpublishPlan(selectedPlan.id, token);
       }
 
       // Step 2: Replace the whole price matrix
-      await admin.updatePlanPrices(selectedPlan.id, payload, token);
+      try {
+        await admin.updatePlanPrices(selectedPlan.id, payload, token);
+      } catch (priceErr) {
+        // The server refused the new prices, so the old ones still stand. Put the plan
+        // back on sale with them rather than leave it silently off the pricing page.
+        if (wasPublished) {
+          try {
+            await admin.publishPlan(selectedPlan.id, token);
+          } catch {
+            setPricesPublishFailed(true);
+            setSelectedPlan((prev: any) => ({ ...prev, status: "draft" }));
+          }
+          fetchPlans();
+        }
+        throw priceErr;
+      }
 
       // Step 3: Re-publish (skip for archived plans)
       if (selectedPlan.status !== "archived") {
@@ -695,10 +714,10 @@ export default function PlansPage() {
                   <div className="space-y-2 mb-6 flex-1">
                     <div className="text-sm flex flex-col">
                       <span className="text-muted-foreground text-xs mb-1">
-                        Paddle Product ID:{" "}
+                        Stripe Product ID:{" "}
                       </span>
                       <span className="font-mono text-[10px] bg-muted px-1.5 py-1 rounded break-all w-fit">
-                        {plan.paddle_product_id || "N/A"}
+                        {plan.stripe_product_id || "Not in Stripe yet"}
                       </span>
                     </div>
                     <div className="text-sm">
@@ -818,7 +837,7 @@ export default function PlansPage() {
               Prices: {selectedPlan.name}
             </h2>
             <p className="text-sm text-muted-foreground mb-4">
-              Enter amounts in major units (e.g. 9.99 for $9.99). Countries are optional — unlisted countries fall back to USD at the live Paddle rate.
+              Enter amounts in major units (e.g. 9.99 for $9.99). Countries are optional — every country without its own price sees the USD price, converted by Stripe at checkout. A currency's countries must all show tax the same way (included, or added at checkout).
             </p>
 
             {pricesPublishFailed && (
